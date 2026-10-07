@@ -36,7 +36,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: chelleyar-linux
-          path: build/linux/x64/release/bundle/
+          path: build/linux/**
           if-no-files-found: error
 
   build-android:
@@ -65,11 +65,11 @@ jobs:
         run: pip install flet
 
       - name: Build APK
-        run: flet build apk
+        run: flet build apk --flutter-build-args --split-per-abi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: chelleyar-android
-          path: build/**/app-release*.apk
+          path: build/**/app-*.apk
           if-no-files-found: error
