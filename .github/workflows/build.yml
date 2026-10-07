@@ -48,21 +48,21 @@ jobs:
         with:
           python-version: '3.12'
 
-      - uses: subosito/flutter-action@v2      # ← جدید
+      - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.44.8'
           channel: stable
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5          # v4 → v5
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android licenses
+        run: yes | flutter doctor --android-licenses || true
 
       - name: Install Flet
-        run: pip install -U flet==1.0.3
+        run: pip install flet
 
       - name: Build APK
         run: flet build apk
@@ -71,5 +71,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: chelleyar-android
-          path: build/apk/release/app-release.apk
+          path: build/**/app-release*.apk
           if-no-files-found: error
