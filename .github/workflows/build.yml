@@ -64,15 +64,15 @@ jobs:
       - name: Install Flet
         run: pip install flet
 
-      - name: Build arm64 APK
+      - name: Build v7a APK
         run: |
-          flet build apk --exclude-arch armeabi-v7a x86_64
+          flet build apk --arch armeabi-v7a
           mkdir -p apks
           find build -name "app-release.apk" -exec cp {} apks/chelleyar-arm64.apk \;
 
-      - name: Build armv7 APK
+      - name: Build v8a APK
         run: |
-          flet build apk --exclude-arch arm64-v8a x86_64
+          flet build apk --arch arm64-v8a
           find build -name "app-release.apk" -exec cp {} apks/chelleyar-armv7.apk \;
 
       - name: Upload APK artifact
