@@ -11,6 +11,11 @@ dependencies = [
     "flet>=1.0.0.dev2"
 ]
 
+
+[tool.flet.flutter.dependencies]
+jni = "^1.1.0"
+
+
 [dependency-groups]
 dev = [
     "flet-cli>=1.0.0.dev2",
