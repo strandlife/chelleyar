@@ -2,8 +2,8 @@ name: Build
 
 on:
   push:
-    branches: [main]      # با هر push به main اجرا شو
-  workflow_dispatch:      # دکمهٔ اجرای دستی هم داشته باش
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   build-linux:
@@ -15,11 +15,16 @@ jobs:
         with:
           python-version: '3.12'
 
+      - uses: subosito/flutter-action@v2      # ← جدید
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+
       - name: Install build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y clang cmake ninja-build pkg-config \
-            libgtk-3-dev liblzma-dev libmpv-dev mpv
+            libgtk-3-dev liblzma-dev
 
       - name: Install Flet
         run: pip install flet
@@ -42,6 +47,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - uses: subosito/flutter-action@v2      # ← جدید
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
 
       - uses: actions/setup-java@v4
         with:
