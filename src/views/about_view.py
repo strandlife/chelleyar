@@ -6,11 +6,11 @@ from theme import gradient_header, elevated_card
 # ---------- اطلاعات طراح را اینجا پر کنید ----------
 DESIGNER = {
     "name": "سید نصیب",
-    "role": "توسعه‌دهنده Python و Flet",
-    "bio": "عاشق ساختن ابزارهای ساده برای بهبود عادت‌ها و پیگیری مسیر معنوی.",
-    "email": "you@example.com",
-    "github": "https://github.com/username",
-    "app_version": "1.0.0",
+    "role": "دبیر علوم تجربی از کهگیلویه و بویر احمد",
+    "bio": "عاشق ساختن ابزارهای ساده برای بهبود عادت‌ها و پیگیری مسیر رشد .",
+    "email": "strandlife@chmail.ir",
+    "github": "https://github.com/strandlife",
+    "app_version": "0.1.0",
     "app_name": "چله‌یار",
     "app_description": (
         "«چله‌یار» ابزاری برای پیگیری چله‌های ۴۰ روزه است. "
@@ -38,7 +38,7 @@ def build_about_view(app) -> ft.Control:
             ft.Row([
                 ft.Icon(ft.Icons.FAVORITE, size=12,
                         color=ft.Colors.RED_400),
-                ft.Text("ساخته‌شده با عشق", size=11,
+                ft.Text("به امید پاک شدن ما از گناهان", size=11,
                         color=ft.Colors.GREY_600),
             ], spacing=4,
                 alignment=ft.MainAxisAlignment.CENTER),
@@ -211,15 +211,15 @@ def _build_about_app_card(d: dict) -> ft.Container:
 
             # ویژگی‌های برنامه
             _feature_row(ft.Icons.CALENDAR_MONTH,
-                         "پیگیری ۴۰ روزه با تاریخ شمسی"),
+                         "پیگیری ۴۰ روزه یک هدف مشخص با کمک تاریخ شمسی"),
             _feature_row(ft.Icons.LAYERS,
-                         "سطوح وظیفه با امتیاز و رنگ اختصاصی"),
+                         "تعیین سطوح وظیفه به همراه امتیاز بندی و رنگ اختصاصی"),
             _feature_row(ft.Icons.HISTORY,
                          "ذخیره تاریخچه دوره‌های موفق و ناموفق"),
             _feature_row(ft.Icons.INSIGHTS,
-                         "نمودار و آمار پیشرفت روزانه"),
+                         "مشاهده نمودار و آمار پیشرفت روزانه"),
             _feature_row(ft.Icons.EDIT_NOTE,
-                         "یادداشت جداگانه برای شروع و پایان روز"),
+                         "نوشتن یادداشت جداگانه برای شروع و پایان یک روز"),
         ], spacing=6),
         padding=16,
     )

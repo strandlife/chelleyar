@@ -94,7 +94,6 @@ def elevated_card(content: ft.Control, padding: int = 14,
         ),
     )
 
-# header 
 def gradient_header(title: str, subtitle: str = "",
                     icon=None) -> ft.Container:
     """هدر گرادیانی برای صفحات"""
