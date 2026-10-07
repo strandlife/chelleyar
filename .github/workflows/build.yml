@@ -62,7 +62,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Flet
-        run: pip install -U flet
+        run: pip install -U flet==1.0.3
 
       - name: Build APK
         run: flet build apk
