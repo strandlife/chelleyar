@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 import flet as ft
 
-from utils import to_jalali, readable_text_color, to_persian_digits
+from utils import to_jalali, readable_text_color, to_persian_digits, get_unrecorded_days
 
 
 def build_status_view(app) -> ft.Control:
@@ -12,7 +12,6 @@ def build_status_view(app) -> ft.Control:
             padding=40,
         )
 
-    day_num = c.current_day
     prog = c.progress()
     is_done = c.status == "completed"
 
@@ -25,6 +24,9 @@ def build_status_view(app) -> ft.Control:
     # ---------- تاریخچه (جدا) ----------
     history = _build_history_section(c)
 
+    if app.current_cheleh and get_unrecorded_days(app.current_cheleh):
+            app.navigate("/catchup")
+    
     # ---------- UI ----------
     return ft.Column([
         ft.Container(
