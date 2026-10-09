@@ -411,20 +411,9 @@ def _show_failure_dialog(app, c, log, li):
         log["result"] = "failure"
         log["date"] = date.today().isoformat()
 
-        c.history.append({
-            "cycle": c.cycle_number,
-            "start_date": c.cycle_start_date,
-            "end_date": date.today().isoformat(),
-            "days_completed": c.progress(),
-            "status": "failed",
-        })
-        c.cycle_number += 1
-        c.cycle_start_date = date.today().isoformat()
-        c.current_day = 1
-        c.daily_logs = {}
-        c.status = "active"
+        app.fail_chelleh(c)
 
-        app.db.save_cheleh(c)
+        #app.db.save_cheleh(c)
         app.snack("چله شکست خورد و از ابتدا شروع شد")
         app.selected_day = None
         app.navigate("/status")
