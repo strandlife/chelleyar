@@ -1,7 +1,7 @@
-from datetime import date
+from datetime import date, timedelta
 import flet as ft
 
-from utils import to_jalali, readable_text_color
+from utils import to_jalali, readable_text_color, to_persian_digits
 
 
 def build_status_view(app) -> ft.Control:
@@ -113,13 +113,14 @@ def _build_summary_card(c, prog, is_done) -> ft.Container:
 # ---------- شبکه روزها ----------
 def _build_day_grid(app, c) -> ft.Control:
     cells = []
-    print(c)
+    start = date.fromisoformat(c.cycle_start_date)
     for i in range(1, c.total_days + 1):
-        cells.append(_make_day_cell(app, c, i))
+        day_date = to_jalali(start + timedelta(days=i - 1))
+        cells.append(_make_day_cell(app, c, i, day_date))
     return ft.ResponsiveRow(cells, spacing=6, run_spacing=6)
 
 
-def _make_day_cell(app, c, i) -> ft.Container:
+def _make_day_cell(app, c, i, day_date) -> ft.Container:
     rec = c.daily_logs.get(str(i), {})
     result = rec.get("result")
     is_current = (i == c.current_day) and (c.status == "active")
@@ -153,8 +154,8 @@ def _make_day_cell(app, c, i) -> ft.Container:
 
     # ---------- ✅ محتوای سلول را جدا می‌سازیم ----------
     cell_children = [
-        ft.Text(str(i), size=13, weight=ft.FontWeight.BOLD, color=fg),
-        ft.Text(c)
+        ft.Text(to_persian_digits(str(i)), size=13, weight=ft.FontWeight.BOLD, color=fg),
+        ft.Text(to_persian_digits(day_date), size=10)
     ]
 
     if result == "success":
