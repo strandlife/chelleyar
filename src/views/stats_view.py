@@ -2,7 +2,7 @@ from datetime import date, timedelta
 import flet as ft
 import flet_charts as fch
 
-from theme import gradient_header, elevated_card
+from theme import elevated_card
 from utils import to_jalali
 
 
@@ -47,13 +47,6 @@ def build_stats_view(app) -> ft.Control:
 
     avg = round(total_score / done_days, 1) if done_days else 0
     success_rate = round(done_days / c.total_days * 100) if c.total_days else 0
-
-    # ---------- هدر ----------
-    # header = gradient_header(
-    #     title="آمار و گزارش",
-    #     subtitle=c.display_name,
-    #     icon=ft.Icons.INSIGHTS,
-    # )
 
     # ---------- کارت‌های خلاصه ----------
     summary_row = ft.ResponsiveRow([
@@ -324,7 +317,6 @@ def build_stats_view(app) -> ft.Control:
 
     # ---------- ساختار نهایی ----------
     return ft.Column([
-        # header,
         ft.Container(
             content=ft.Column([
                 summary_row,
