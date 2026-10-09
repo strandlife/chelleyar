@@ -30,7 +30,6 @@ class ChelehApp:
     async def init(self):
         """بارگذاری داده‌ها از SharedPreferences"""
         self.chelehs = self.db.load_chelehs()
-        # self.chelehs = await load_chelehs(self.prefs)
         saved = self.db.get_setting("theme_mode", "light")
         if saved in ("light", "dark", "system"):
             self.theme_mode = saved
@@ -48,7 +47,6 @@ class ChelehApp:
 
     async def save(self):
         """ذخیره‌سازی داده‌ها"""
-        # await save_chelehs(self.prefs, self.chelehs)
         for c in self.chelehs:
             self.db.save_cheleh(c)
 

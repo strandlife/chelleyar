@@ -113,6 +113,7 @@ def _build_summary_card(c, prog, is_done) -> ft.Container:
 # ---------- شبکه روزها ----------
 def _build_day_grid(app, c) -> ft.Control:
     cells = []
+    print(c)
     for i in range(1, c.total_days + 1):
         cells.append(_make_day_cell(app, c, i))
     return ft.ResponsiveRow(cells, spacing=6, run_spacing=6)
@@ -153,6 +154,7 @@ def _make_day_cell(app, c, i) -> ft.Container:
     # ---------- ✅ محتوای سلول را جدا می‌سازیم ----------
     cell_children = [
         ft.Text(str(i), size=13, weight=ft.FontWeight.BOLD, color=fg),
+        ft.Text(c)
     ]
 
     if result == "success":
