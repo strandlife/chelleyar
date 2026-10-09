@@ -1,13 +1,16 @@
 import flet as ft
 from models import Cheleh
+from datetime import date
+from utils import get_unrecorded_days
 from theme import make_appbar
 from database import Database
 from views.list_view import build_list_view
 from views.day_detail_view import build_day_detail_view
 from views.add_view import build_add_view
 from views.status_view import build_status_view
-from views.edit_view import build_edit_view   # ← اضافه کنید
+from views.edit_view import build_edit_view
 from views.stats_view import build_stats_view
+from views.catchup_view import build_catchup_view
 from views.about_view import build_about_view
 
 
@@ -22,8 +25,8 @@ class ChelehApp:
         self.page = page
         self.db = db
         self.chelehs: list[Cheleh] = []
-        self.selected_day = None          # ← جدید
-        self.editing_cheleh = None      # ← اضافه کنید
+        self.selected_day = None
+        self.editing_cheleh = None
         self.current_cheleh: Cheleh | None = None
         self.theme_mode = "light"
 
@@ -96,6 +99,19 @@ class ChelehApp:
                 ),
                 scroll=ft.ScrollMode.AUTO,
                 controls=[build_edit_view(self)],
+            ))
+        elif route == "/catchup":
+            subtitle = ''
+            page.views.append(ft.View(
+                route='catchup',
+                appbar=make_appbar(
+                    title='روز های جامانده',
+                    subtitle=subtitle,
+                    show_back=True,
+                    on_back=lambda e:self.navigate('/status'),
+                ),
+                scroll=ft.ScrollMode.AUTO,
+                controls=[build_catchup_view(self)],
             ))
         elif route == "/day":
             subtitle = ""
@@ -206,3 +222,28 @@ class ChelehApp:
         self.db.set_setting("theme_mode", self.theme_mode)
         self.apply_theme()
         self.refresh() 
+
+    def check_missed_days(self):
+        """اولین چله فعالی که روز ثبت‌نشده دارد را پیدا و به صفحه تعیین تکلیف برو"""
+        for ch in self.chelehs:
+            if ch.status == "active" and get_unrecorded_days(ch):
+                self.current_cheleh = ch
+                self.navigate("/catchup")
+                return
+
+    def fail_chelleh(self, c: Cheleh):
+        """شکست چله: بایگانی دوره فعلی و شروع دوره جدید از امروز"""
+        today_iso = date.today().isoformat()
+        c.history.append({
+            "cycle": c.cycle_number,
+            "status": "failed",
+            "start_date": c.cycle_start_date,
+            "end_date": today_iso,
+            "days_completed": c.progress(),
+        })
+        c.cycle_number += 1
+        c.cycle_start_date = today_iso
+        c.current_day = 1
+        c.daily_logs = {}
+        c.status = "active"
+        self.db.save_cheleh(c)
