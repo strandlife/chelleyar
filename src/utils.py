@@ -1,5 +1,6 @@
 from datetime import date
 from persiantools.jdatetime import JalaliDate
+from datetime import date, timedelta
 import flet as ft
 
 
@@ -36,3 +37,10 @@ def readable_text_color(hex_color: str) -> str:
     r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
     lum = 0.299 * r + 0.587 * g + 0.114 * b
     return ft.Colors.BLACK if lum > 140 else ft.Colors.WHITE
+
+
+_PERSIAN_DIGITS = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
+
+def to_persian_digits(s: str) -> str:
+    """اعداد لاتین رشته را به اعداد فارسی تبدیل می‌کند"""
+    return s.translate(_PERSIAN_DIGITS)
