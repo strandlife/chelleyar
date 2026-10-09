@@ -44,3 +44,23 @@ _PERSIAN_DIGITS = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
 def to_persian_digits(s: str) -> str:
     """اعداد لاتین رشته را به اعداد فارسی تبدیل می‌کند"""
     return s.translate(_PERSIAN_DIGITS)
+
+def compute_current_day(c, today: date | None = None) -> int:
+    """شماره روز امروز را از روی تاریخ شروع محاسبه می‌کند (نه مقدار ذخیره‌شده).
+    صفر یعنی چله هنوز شروع نشده."""
+    if today is None:
+        today = date.today()
+    start = date.fromisoformat(c.cycle_start_date)
+    diff = (today - start).days + 1   # خودِ روز شروع = روز ۱
+    return min(max(diff, 0), c.total_days)
+
+
+def get_unrecorded_days(c, today: date | None = None) -> list[int]:
+    """روزهای سپری‌شده‌ای که هنوز نتیجه‌ای برایشان ثبت نشده است."""
+    if c is None or c.status != "active":
+        return []
+    current = compute_current_day(c, today)
+    return [
+        i for i in range(1, current)          # برای حذف «امروز»: range(1, current)
+        if not c.daily_logs.get(str(i), {}).get("result")
+    ]
