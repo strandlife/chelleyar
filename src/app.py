@@ -2,7 +2,7 @@ import flet as ft
 from models import Cheleh
 from datetime import date
 from utils import get_unrecorded_days
-from theme import make_appbar
+from theme import make_appbar, import_cheleh_action
 from database import Database
 from views.list_view import build_list_view
 from views.day_detail_view import build_day_detail_view
@@ -61,6 +61,11 @@ class ChelehApp:
         """ناوبری به مسیر مشخص"""
         self.page.run_task(self.page.push_route, route)
 
+    def go_back(self, e=None):
+        """خروج از صفحه فعلی — برگشت به مقصد واقعی قبلی در استک"""
+        if (self.page.route or "/") != "/":
+            self.page.run_task(self.page.pop_route)
+
     def refresh(self):
         """بازسازی صفحه فعلی بدون تغییر تاریخچه"""
         self.route_change(None)
@@ -82,7 +87,7 @@ class ChelehApp:
                     title="افزودن چله جدید",
                     subtitle="یک مسیر تازه ۴۰ روزه",
                     show_back=True,
-                    on_back=lambda e: self.navigate("/"),
+                    on_back=lambda e: self.go_back("/"),
                 ),
                 controls=[build_add_view(self)],
             ))
@@ -95,7 +100,7 @@ class ChelehApp:
                     title="ویرایش چله",
                     subtitle=subtitle,
                     show_back=True,
-                    on_back=lambda e: self.navigate("/"),
+                    on_back=lambda e: self.go_back("/"),
                 ),
                 scroll=ft.ScrollMode.AUTO,
                 controls=[build_edit_view(self)],
@@ -108,7 +113,7 @@ class ChelehApp:
                     title='روز های جامانده',
                     subtitle=subtitle,
                     show_back=True,
-                    on_back=lambda e:self.navigate('/status'),
+                    on_back=lambda e:self.go_back('/status'),
                 ),
                 scroll=ft.ScrollMode.AUTO,
                 controls=[build_catchup_view(self)],
@@ -123,7 +128,7 @@ class ChelehApp:
                     title="جزئیات روز",
                     subtitle=subtitle,
                     show_back=True,
-                    on_back=lambda e: self.navigate("/status"),
+                    on_back=lambda e: self.go_back("/status"),
                 ),
                 scroll=ft.ScrollMode.AUTO,
                 controls=[build_day_detail_view(self)],
@@ -137,7 +142,7 @@ class ChelehApp:
                     title="وضعیت چله",
                     subtitle=subtitle,
                     show_back=True,
-                    on_back=lambda e: self.navigate("/"),
+                    on_back=lambda e: self.go_back("/"),
                     actions=[
                         ft.IconButton(
                             ft.Icons.INSIGHTS_OUTLINED,
@@ -158,7 +163,7 @@ class ChelehApp:
                     title="آمار و گزارش",
                     subtitle=subtitle,
                     show_back=True,
-                    on_back=lambda e: self.navigate("/status"),
+                    on_back=lambda e: self.go_back("/status"),
                 ),
                 scroll=ft.ScrollMode.AUTO,
                 controls=[build_stats_view(self)],
@@ -169,7 +174,7 @@ class ChelehApp:
                 appbar=make_appbar(
                     title="درباره برنامه",
                     show_back=True,
-                    on_back=lambda e: self.navigate("/"),
+                    on_back=lambda e: self.go_back("/"),
                 ),
                 scroll=ft.ScrollMode.AUTO,
                 controls=[build_about_view(self)],
@@ -182,6 +187,7 @@ class ChelehApp:
                 appbar=make_appbar(
                     title="چله‌یار",
                     actions=[
+                        import_cheleh_action(self),
                         ft.IconButton(
                             theme_icon,
                             tooltip="حالت شب/روز",
