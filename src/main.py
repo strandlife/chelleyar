@@ -21,6 +21,10 @@ async def main(page: ft.Page):
     }
     page.theme_mode = ft.ThemeMode.LIGHT
     page.theme = app_theme()
+    page.fonts = {
+        "Vazirmatn": "fonts/Vazirmatn-Regular.woff2",
+        "Vazirmatn Bold": "fonts/Vazirmatn-Bold.woff2",
+    }
     page.dark_theme = app_dark_theme()
 
     db = Database()
