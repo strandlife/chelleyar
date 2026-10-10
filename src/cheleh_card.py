@@ -1,63 +1,84 @@
-from datetime import date
-
 import flet as ft
 
 
 # ==================================================================
-# محاسبه سطح اجرای چله
+# محاسبه سطح اجرای چله — هماهنگ با مدل Cheleh
 # ==================================================================
 
-def _today_log(c):
-    """لاگ امروز را از daily_logs برمی‌گرداند (یا None)."""
-    logs = getattr(c, "daily_logs", None)
-    if not isinstance(logs, dict):
-        return None
-    return logs.get(date.today().isoformat())
+def get_level_info(c) -> dict:
+    """اطلاعات سطح اجرای «روز جاری» را برای نمایش برمی‌گرداند.
 
-
-def _extract_score(log):
-    """امتیاز عددی امروز را از ساختار لاگ استخراج می‌کند.
-
-    ساختارهای پشتیبانی‌شده:
-      • عدد خام (int / float)
-      • دیکشنری با کلید «score»
-      • دیکشنری با کلید «levels» شامل لیست امتیازها
-    ⚠️ اگر ساختار daily_logs شما چیز دیگری است،
-       فقط همین یک تابع را تغییر دهید.
+    حالت‌ها:
+      {"mode": "done"}     → چله تکمیل شده
+      {"mode": "empty"}    → امروز هنوز چیزی ثبت نشده
+      {"mode": "pending"}  → سطح ثبت شده، نتیجه صبح/شب هنوز مشخص نیست
+      {"mode": "success"}  → روز موفق
+      {"mode": "failure"}  → روز ناموفق
+    کلید «level» در سه حالت آخر مقدار دارد.
     """
-    if isinstance(log, (int, float)):
-        return int(log)
-    if isinstance(log, dict):
-        if isinstance(log.get("score"), (int, float)):
-            return int(log["score"])
-        if isinstance(log.get("levels"), list):
-            return sum(
-                int(x) for x in log["levels"]
-                if isinstance(x, (int, float))
-            )
-    return None
+    if c.status == "completed":
+        return {"mode": "done"}
+
+    # ⚠️ عمداً از get_today_log() استفاده نکردیم چون اگر لاگ نباشد،
+    #    لاگ جدید می‌سازد و دیکشنری daily_logs را شلوغ می‌کند.
+    log = c.daily_logs.get(str(c.current_day))
+
+    has_content = bool(log) and (
+        log.get("morning_saved") or log.get("evening_saved")
+        or log.get("result")
+    )
+    if not has_content:
+        return {"mode": "empty"}
+
+    # سطح از level_index (ایندکس واقعی انتخاب کاربر)
+    level = None
+    idx = log.get("level_index")
+    if isinstance(idx, int) and 0 <= idx < len(c.levels or []):
+        level = c.levels[idx]
+
+    result = log.get("result")
+    if result == "success":
+        mode = "success"
+    elif result:  # هر مقدار دیگر (مثل "failure")
+        mode = "failure"
+        # اگر level_index معتبر نبود، سطح شکست را از خود مدل بگیر
+        if level is None:
+            fi = c.failure_level_index()
+            if 0 <= fi < len(c.levels or []):
+                level = c.levels[fi]
+    else:
+        mode = "pending"
+
+    return {"mode": mode, "level": level, "score": log.get("score", 0)}
 
 
-def get_current_level(c) -> dict | None:
-    """سطح اجرای «امروز» چله را برمی‌گرداند.
+def _make_level_chip(info: dict) -> ft.Container:
+    mode = info["mode"]
 
-    یعنی بالاترین سطحی که امتیاز ثبت‌شده امروز شرطش را برآورده کرده.
-    اگر امروز لاگی ثبت نشده باشد، None برمی‌گرداند.
-    """
-    if not getattr(c, "levels", None):
-        return None
-    log = _today_log(c)
-    if log is None:
-        return None
-    score = _extract_score(log)
-    if score is None:
-        return None
+    if mode == "done":
+        return _make_chip("چله تکمیل شد", "#2E7D32",
+                          icon=ft.Icons.VERIFIED)
 
-    current = None
-    for lv in sorted(c.levels, key=lambda x: x.get("score", 0)):
-        if score >= lv.get("score", 0):
-            current = lv
-    return current
+    if mode == "empty":
+        return _make_chip("امروز ثبت نشده", ft.Colors.GREY_500)
+
+    lv = info.get("level")
+    if lv:
+        color = lv.get("color", "#4CAF50")
+        text = lv.get("title") or "بدون عنوان"
+    elif mode == "failure":
+        color = ft.Colors.RED_400
+        text = "شکست"
+    else:
+        color = ft.Colors.GREY_500
+        text = "سطح نامشخص"
+
+    icon = {
+        "success": ft.Icons.CHECK_CIRCLE,
+        "failure": ft.Icons.CANCEL,
+    }.get(mode)
+
+    return _make_chip(text, color, icon=icon)
 
 
 # ==================================================================
@@ -129,17 +150,12 @@ def build_cheleh_card(app, c) -> ft.Control:
         vertical_alignment=ft.CrossAxisAlignment.CENTER,
     )
 
-    # ---------- ردیف سطح اجرا (جدید) ----------
-    lv = get_current_level(c)
-    if is_done:
-        chip = _make_chip("چله تکمیل شد", "#2E7D32", icon=ft.Icons.VERIFIED)
-    elif lv:
-        chip = _make_chip(lv["title"] or "بدون عنوان", lv["color"])
-    else:
-        chip = _make_chip("امروز ثبت نشده", ft.Colors.GREY_500)
+    # ---------- ردیف سطح اجرا ----------
+    info = get_level_info(c)
+    chip = _make_level_chip(info)
 
     status_children = []
-    if lv and not is_done:
+    if info["mode"] in ("success", "failure", "pending"):
         status_children.append(
             ft.Text("سطح امروز:", size=10, color=ft.Colors.GREY_500))
     status_children += [chip, ft.Container(expand=True)]
@@ -221,7 +237,7 @@ def build_cheleh_card(app, c) -> ft.Control:
                 ], spacing=8,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER),
                 ft.Container(height=4),
-                status_row,   # ➕ ردیف سطح اجرا
+                status_row,
             ], spacing=3, expand=True),
             ft.IconButton(
                 ft.Icons.MORE_VERT,
@@ -248,7 +264,7 @@ def build_cheleh_card(app, c) -> ft.Control:
 
 
 # ==================================================================
-# دیالوگ حذف (از list_view به اینجا منتقل شد)
+# دیالوگ حذف
 # ==================================================================
 
 def _show_delete_dialog(app, ch):
