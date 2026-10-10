@@ -8,6 +8,9 @@ from models import Cheleh
 from theme import elevated_card
 from utils import COLOR_OPTIONS, to_jalali
 
+MAX_LEVELS = 10
+MIN_LEVELS = 2
+
 
 def build_add_view(app) -> ft.Control:
     page = app.page
@@ -36,7 +39,213 @@ def build_add_view(app) -> ft.Control:
         prefix_icon=ft.Icons.TASK_ALT_OUTLINED,
     )
 
-    levels_column = ft.Column(spacing=10)
+    # ---------- سطوح (منبع اصلی داده) ----------
+    levels: list[dict] = [
+        {"title": "", "score": 1, "color": "#2E7D32"},
+        {"title": "", "score": 2, "color": "#4CAF50"},
+        {"title": "", "score": 3, "color": "#8BC34A"},
+    ]
+    levels_column = ft.Column(spacing=8)
+    levels_counter = ft.Text(size=11, color=ft.Colors.GREY_500)
+
+    # ---------- دیالوگ افزودن / ویرایش سطح ----------
+    def open_level_dialog(e=None, index: int | None = None):
+        is_edit = index is not None
+        initial = dict(levels[index]) if is_edit else {
+            "title": "", "score": "", "color": "#4CAF50"}
+
+        title_field = ft.TextField(
+            label="عنوان سطح",
+            hint_text="مثلاً: نماز صبح اول وقت",
+            value=initial["title"],
+            border_radius=10,
+            filled=True,
+            autofocus=True,
+            prefix_icon=ft.Icons.LABEL_OUTLINE,
+        )
+        score_field = ft.TextField(
+            label="امتیاز",
+            hint_text="عدد مثبت؛ مثلاً 5",
+            value=str(initial["score"]),
+            border_radius=10,
+            filled=True,
+            keyboard_type=ft.KeyboardType.NUMBER,
+            prefix_icon=ft.Icons.STAR_OUTLINE,
+        )
+        color_dd = ft.Dropdown(
+            label="رنگ",
+            value=initial["color"],
+            border_radius=10,
+            filled=True,
+            options=[ft.DropdownOption(key=k, text=t)
+                     for k, t in COLOR_OPTIONS],
+        )
+        preview = ft.Container(
+            width=36, height=36,
+            bgcolor=initial["color"],
+            border_radius=10,
+            border=ft.Border.all(2, ft.Colors.with_opacity(0.15, ft.Colors.BLACK)),
+        )
+
+        def on_color_change(e):
+            preview.bgcolor = color_dd.value
+            page.update()
+
+        color_dd.on_change = on_color_change
+
+        def clear_errors(e=None):
+            title_field.error_text = None
+            score_field.error_text = None
+            page.update()
+
+        title_field.on_change = clear_errors
+        score_field.on_change = clear_errors
+
+        def save(e):
+            t = title_field.value.strip()
+            if not t:
+                title_field.error_text = "عنوان سطح را وارد کنید"
+                page.update()
+                return
+
+            raw = (score_field.value or "").strip()
+            if not raw:
+                score_field.error_text = "امتیاز را وارد کنید"
+                page.update()
+                return
+            try:
+                s = int(raw)
+            except ValueError:
+                score_field.error_text = "امتیاز باید عدد باشد"
+                page.update()
+                return
+            if s < 0:
+                score_field.error_text = "امتیاز نمی‌تواند منفی باشد"
+                page.update()
+                return
+
+            # جلوگیری از امتیاز تکراری
+            if any(lv["score"] == s
+                   for i_lv, lv in enumerate(levels) if i_lv != index):
+                score_field.error_text = "این امتیاز قبلاً استفاده شده است"
+                page.update()
+                return
+
+            data = {"title": t, "score": s,
+                    "color": color_dd.value or "#4CAF50"}
+            if is_edit:
+                levels[index] = data
+            else:
+                levels.append(data)
+            refresh_levels()
+            page.pop_dialog()
+
+        # Enter در فیلد امتیاز = ذخیره
+        score_field.on_submit = save
+
+        dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Row([
+                ft.Icon(ft.Icons.LAYERS_OUTLINED, size=20,
+                        color=ft.Colors.PRIMARY),
+                ft.Text("ویرایش سطح" if is_edit else "افزودن سطح",
+                        size=16, weight=ft.FontWeight.BOLD),
+            ], spacing=8),
+            content=ft.Column([
+                title_field,
+                score_field,
+                ft.Row([
+                    ft.Container(content=color_dd, expand=True),
+                    preview,
+                ], spacing=10,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            ], tight=True, spacing=12),
+            actions=[
+                ft.TextButton(
+                    "انصراف",
+                    on_click=lambda e: page.pop_dialog(),
+                ),
+                ft.Button(
+                    "ذخیره",
+                    icon=ft.Icons.CHECK,
+                    on_click=save,
+                    style=ft.ButtonStyle(
+                        bgcolor=ft.Colors.PRIMARY,
+                        color=ft.Colors.WHITE,
+                    ),
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.show_dialog(dlg)
+
+    # ---------- نمایش خلاصه سطوح ----------
+    def make_level_tile(index: int, lv: dict) -> ft.Container:
+        score_chip = ft.Container(
+            content=ft.Text(f"امتیاز {lv['score']}", size=11,
+                            weight=ft.FontWeight.BOLD, color=lv["color"]),
+            bgcolor=ft.Colors.with_opacity(0.12, lv["color"]),
+            padding=ft.Padding.symmetric(horizontal=8, vertical=4),
+            border_radius=20,
+        )
+        return ft.Container(
+            content=ft.Row([
+                ft.Container(
+                    width=14, height=14,
+                    bgcolor=lv["color"], border_radius=7,
+                    border=ft.Border.all(
+                        1, ft.Colors.with_opacity(0.2, ft.Colors.BLACK)),
+                ),
+                ft.Text(
+                    lv["title"] or "بدون عنوان",
+                    size=13, weight=ft.FontWeight.W_600,
+                    expand=True,
+                    italic=not lv["title"],
+                    color=ft.Colors.GREY_500 if not lv["title"] else None,
+                ),
+                score_chip,
+                ft.IconButton(
+                    ft.Icons.EDIT_OUTLINED, icon_size=18,
+                    tooltip="ویرایش سطح",
+                    icon_color=ft.Colors.GREY_700,
+                    on_click=lambda e, i=index: open_level_dialog(index=i),
+                ),
+                ft.IconButton(
+                    ft.Icons.DELETE_OUTLINE, icon_size=18,
+                    tooltip="حذف سطح",
+                    icon_color=ft.Colors.RED_400,
+                    on_click=lambda e, i=index: remove_level(i),
+                ),
+            ], spacing=6,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            padding=ft.Padding.symmetric(horizontal=12, vertical=6),
+            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
+            border_radius=12,
+            border=ft.Border.all(
+                1, ft.Colors.with_opacity(0.08, ft.Colors.PRIMARY)),
+        )
+
+    def refresh_levels():
+        levels_column.controls.clear()
+        for i, lv in enumerate(levels):
+            levels_column.controls.append(make_level_tile(i, lv))
+        levels_counter.value = f"{len(levels)} از {MAX_LEVELS} سطح"
+        page.update()
+
+    def remove_level(index: int):
+        if len(levels) <= MIN_LEVELS:
+            app.snack("حداقل دو سطح لازم است")
+            return
+        levels.pop(index)
+        refresh_levels()
+
+    def add_level_click(e=None):
+        if len(levels) >= MAX_LEVELS:
+            app.snack("حداکثر ۱۰ سطح مجاز است")
+            return
+        open_level_dialog()
+
+    refresh_levels()
 
     # ---------- تاریخ شروع ----------
     selected_start_date = {"value": date.today()}
@@ -60,114 +269,6 @@ def build_add_view(app) -> ft.Control:
     def open_picker(e):
         page.show_dialog(picker)
 
-    # ---------- ردیف سطح ----------
-    def make_level_row(title: str = "", score: str = "1",
-                       color: str = "#4CAF50") -> ft.Container:
-        title_field = ft.TextField(
-            label="عنوان سطح",
-            value=title,
-            hint_text="مثلاً: نماز صبح اول وقت",
-            border_radius=10,
-            filled=True,
-            dense=True,
-            expand=True,
-        )
-        score_field = ft.TextField(
-            label="امتیاز",
-            value=score,
-            width=95,
-            border_radius=10,
-            filled=True,
-            dense=True,
-            keyboard_type=ft.KeyboardType.NUMBER,
-        )
-        color_dd = ft.Dropdown(
-            label="رنگ",
-            value=color,
-            width=150,
-            border_radius=10,
-            filled=True,
-            dense=True,
-            options=[ft.DropdownOption(key=k, text=t)
-                     for k, t in COLOR_OPTIONS],
-        )
-
-        preview = ft.Container(
-            width=32, height=32,
-            bgcolor=color,
-            border_radius=8,
-            border=ft.Border.all(2, ft.Colors.with_opacity(0.2, ft.Colors.BLACK)),
-        )
-
-        def on_color_change(e, dd=color_dd, pv=preview):
-            pv.bgcolor = dd.value
-            page.update()
-
-        color_dd.on_change = on_color_change
-
-        remove_btn = ft.IconButton(
-            ft.Icons.CLOSE,
-            icon_color=ft.Colors.RED_400,
-            icon_size=20,
-            tooltip="حذف سطح",
-            on_click=lambda e: _remove_row(levels_column, row_wrap, app),
-        )
-
-        row_inner = ft.ResponsiveRow([
-            ft.Column([title_field], col={"xs": 12, "sm": 6}),
-            ft.Column([score_field], col={"xs": 6, "sm": 2}),
-            ft.Column([color_dd], col={"xs": 5, "sm": 3}),
-            ft.Column([preview], col={"xs": 1, "sm": 1}),
-        ], spacing=8, run_spacing=8)
-
-        row_wrap = ft.Container(
-            content=ft.Column([
-                ft.Row([
-                    ft.Icon(ft.Icons.CIRCLE, size=8,
-                            color=ft.Colors.GREY_400),
-                    ft.Text("سطح وظیفه", size=11,
-                            color=ft.Colors.GREY_600,
-                            weight=ft.FontWeight.W_500),
-                    ft.Container(expand=True),
-                    remove_btn,
-                ], spacing=6,
-                    vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                row_inner,
-            ], spacing=6),
-            padding=12,
-            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-            border_radius=14,
-            border=ft.Border.all(
-                1, ft.Colors.with_opacity(0.08, ft.Colors.PRIMARY)),
-            shadow=ft.BoxShadow(
-                blur_radius=6, spread_radius=0,
-                color=ft.Colors.with_opacity(0.04, ft.Colors.BLACK),
-                offset=ft.Offset(0, 2),
-            ),
-            animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
-        )
-        row_wrap.data = {
-            "title": title_field,
-            "score": score_field,
-            "color": color_dd,
-        }
-        return row_wrap
-
-    def add_level_row(e=None):
-        if len(levels_column.controls) >= 10:
-            app.snack("حداکثر ۱۰ سطح مجاز است")
-            return
-        levels_column.controls.append(make_level_row())
-        page.update()
-
-    # سه سطح پیش‌فرض
-    levels_column.controls.append(
-        make_level_row(score="1", color="#2E7D32"))
-    levels_column.controls.append(
-        make_level_row(score="2", color="#4CAF50"))
-    levels_column.controls.append(
-        make_level_row(score="3", color="#8BC34A"))
-
     # ---------- ثبت فرم ----------
     async def submit(e):
         name = name_field.value.strip()
@@ -175,24 +276,11 @@ def build_add_view(app) -> ft.Control:
             app.snack("نام چله را وارد کنید")
             return
 
-        levels = []
-        for row_wrap in levels_column.controls:
-            t = row_wrap.data["title"].value.strip()
-            try:
-                s = int(row_wrap.data["score"].value or 0)
-            except ValueError:
-                app.snack("امتیاز باید عدد باشد")
-                return
-            col = row_wrap.data["color"].value or "#4CAF50"
-            if not t:
-                app.snack("عنوان همه سطوح را وارد کنید")
-                return
-            if s < 0:
-                app.snack("امتیاز نمی‌تواند منفی باشد")
-                return
-            levels.append({"title": t, "score": s, "color": col})
+        if any(not lv["title"].strip() for lv in levels):
+            app.snack("عنوان همه سطوح را وارد کنید (روی آیکون ویرایش بزنید)")
+            return
 
-        if len(levels) < 2:
+        if len(levels) < MIN_LEVELS:
             app.snack("حداقل دو سطح وظیفه تعریف کنید")
             return
 
@@ -226,7 +314,6 @@ def build_add_view(app) -> ft.Control:
         await page.push_route("/")
 
     # ---------- UI ----------
-    # بخش اطلاعات پایه
     basic_info = elevated_card(
         ft.Column([
             ft.Row([
@@ -243,7 +330,6 @@ def build_add_view(app) -> ft.Control:
         padding=16,
     )
 
-    # بخش سطوح
     levels_section = elevated_card(
         ft.Column([
             ft.Row([
@@ -252,10 +338,11 @@ def build_add_view(app) -> ft.Control:
                 ft.Text("سطوح وظیفه", size=14,
                         weight=ft.FontWeight.BOLD),
                 ft.Container(expand=True),
+                levels_counter,
                 ft.TextButton(
                     "افزودن سطح",
                     icon=ft.Icons.ADD_CIRCLE_OUTLINE,
-                    on_click=add_level_row,
+                    on_click=add_level_click,
                 ),
             ], spacing=8,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER),
@@ -264,7 +351,7 @@ def build_add_view(app) -> ft.Control:
                     ft.Icon(ft.Icons.LIGHTBULB_OUTLINE, size=14,
                             color=ft.Colors.AMBER_700),
                     ft.Text(
-                        "هر سطح شامل عنوان، امتیاز و رنگ است. "
+                        "با دکمه «افزودن سطح» یک سطح جدید تعریف کنید. "
                         "با کسب حداقل ۱ امتیاز، چله در آن روز برقرار می‌ماند.",
                         size=11, color=ft.Colors.GREY_600),
                 ], spacing=6,
@@ -278,7 +365,6 @@ def build_add_view(app) -> ft.Control:
         padding=16,
     )
 
-    # بخش تاریخ شروع
     date_section = elevated_card(
         ft.Column([
             ft.Row([
@@ -318,7 +404,6 @@ def build_add_view(app) -> ft.Control:
         padding=16,
     )
 
-    # دکمه‌های پایین
     actions = ft.Row([
         ft.TextButton(
             "انصراف",
@@ -341,7 +426,6 @@ def build_add_view(app) -> ft.Control:
         ),
     ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER)
 
-    # ---------- ساختار نهایی ----------
     return ft.Column([
         ft.Container(
             content=ft.Column([
@@ -354,12 +438,3 @@ def build_add_view(app) -> ft.Control:
             padding=ft.Padding.only(left=16, right=16, top=16, bottom=8),
         ),
     ], spacing=0, scroll=ft.ScrollMode.AUTO, expand=True)
-
-
-# ---------- توابع کمکی ----------
-def _remove_row(levels_column: ft.Column, row_wrap: ft.Container, app):
-    if len(levels_column.controls) <= 2:
-        app.snack("حداقل دو سطح لازم است")
-        return
-    levels_column.controls.remove(row_wrap)
-    app.page.update()
