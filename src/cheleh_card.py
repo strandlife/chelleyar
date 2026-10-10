@@ -1,9 +1,115 @@
 import flet as ft
+import json
+import base64
 
 
 # ==================================================================
-# محاسبه سطح اجرای چله — هماهنگ با مدل Cheleh
+# اشتراک‌گذاری چله
 # ==================================================================
+
+SHARE_PREFIX = "CHELEHYAR1:"
+
+
+def make_share_code(c) -> str:
+    """کد اشتراک‌گذاری چله — فقط تعریف چله، بدون داده‌های شخصی."""
+    payload = {
+        "name": c.name,
+        "display_name": c.display_name,
+        "task": c.task,
+        "levels": c.levels,
+        "total_days": c.total_days,
+    }
+    raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    return SHARE_PREFIX + base64.urlsafe_b64encode(
+        raw.encode("utf-8")).decode("ascii")
+
+
+def _get_service(page: ft.Page, service_type):
+    """سرویس موردنظر را از page.services برمی‌گرداند؛ اگر نبود می‌سازد."""
+    for s in getattr(page, "services", []):
+        if isinstance(s, service_type):
+            return s
+    svc = service_type()
+    page.services.append(svc)
+    return svc
+
+
+def _show_share_dialog(app, c):
+    page = app.page
+    code = make_share_code(c)
+
+    code_field = ft.TextField(
+        value=code,
+        read_only=True,
+        multiline=True,
+        min_lines=4,
+        max_lines=6,
+        border_radius=ft.BorderRadius.all(12),
+        filled=True,
+    )
+
+    async def copy_code(e=None):
+        try:
+            clipboard = _get_service(page, ft.Clipboard)
+            await clipboard.set(code)
+            app.snack("کد اشتراک‌گذاری کپی شد ✅")
+        except Exception:
+            app.snack("کپی نشد — متن کد را دستی انتخاب و کپی کنید")
+
+    share_message = (
+        f"چله «{c.display_name}» را برای تو فرستادم 🌱\n"
+        f"این کد را در اپ «چله‌یار» وارد کن:\n\n{code}"
+    )
+
+    dialog = ft.AlertDialog(
+        modal=True,
+        title=ft.Row([
+            ft.Icon(ft.Icons.SHARE, size=20, color=ft.Colors.PRIMARY),
+            ft.Text("اشتراک‌گذاری چله", size=16,
+                    weight=ft.FontWeight.BOLD),
+        ], spacing=8),
+        content=ft.Container(
+            width=300,
+            content=ft.Column([
+                ft.Text(
+                    "این کد شامل تعریف چله (نام، وظیفه و سطوح) است. "
+                    "سابقه و یادداشت‌های شخصی شما ارسال نمی‌شود.",
+                    size=11, color=ft.Colors.GREY_600),
+                code_field,
+                ft.Text(
+                    "کد را کپی کنید و برای دوستتان بفرستید.",
+                    size=10, color=ft.Colors.GREY_500),
+            ], tight=True, spacing=10),
+        ),
+        actions=[
+            ft.TextButton(
+                "انصراف",
+                on_click=lambda e: page.pop_dialog(),
+            ),
+            ft.TextButton(
+                "کپی کد",
+                icon=ft.Icons.COPY,
+                on_click=copy_code,
+            ),
+            ft.Button(
+                "ارسال",
+                icon=ft.Icons.SHARE,
+                # اکشن سمت کلاینت — حین همان ژست کلیک اجرا می‌شود،
+                # پس در وب هم شیت اشتراک باز می‌شود
+                action=ft.ShareText(
+                    share_message,
+                    subject="چله‌یار",
+                ),
+                style=ft.ButtonStyle(
+                    bgcolor=ft.Colors.PRIMARY,
+                    color=ft.Colors.WHITE,
+                ),
+            ),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+    )
+    page.show_dialog(dialog)
+
 
 def get_level_info(c) -> dict:
     """اطلاعات سطح اجرای «روز جاری» را برای نمایش برمی‌گرداند.
@@ -184,6 +290,11 @@ def build_cheleh_card(app, c) -> ft.Control:
             page.pop_dialog()
             _show_delete_dialog(app, c)
 
+        def go_share(ev):
+            page.pop_dialog()
+            _show_share_dialog(app, c)
+
+
         dialog = ft.AlertDialog(
             content=ft.Column([
                 ft.ListTile(
@@ -197,6 +308,12 @@ def build_cheleh_card(app, c) -> ft.Control:
                                     color=ft.Colors.ORANGE),
                     title=ft.Text("آمار و گزارش"),
                     on_click=go_stats,
+                ),
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.SHARE_OUTLINED,
+                                    color=ft.Colors.BLUE_400),
+                    title=ft.Text("اشتراک‌گذاری چله"),
+                    on_click=go_share,
                 ),
                 ft.Divider(height=1),
                 ft.ListTile(
@@ -246,6 +363,13 @@ def build_cheleh_card(app, c) -> ft.Control:
                 tooltip="گزینه‌ها",
                 on_click=open_menu,
             ),
+            ft.IconButton(
+                ft.Icons.SHARE_OUTLINED,
+                icon_size=18,
+                icon_color=ft.Colors.GREY_500,
+                tooltip="اشتراک‌گذاری چله",
+                on_click=lambda e, ch=c: _show_share_dialog(app, ch),
+            ),
         ], spacing=10,
             vertical_alignment=ft.CrossAxisAlignment.CENTER),
         padding=ft.Padding.symmetric(vertical=12, horizontal=12),
@@ -263,9 +387,7 @@ def build_cheleh_card(app, c) -> ft.Control:
     return card
 
 
-# ==================================================================
-# دیالوگ حذف
-# ==================================================================
+
 
 def _show_delete_dialog(app, ch):
     page = app.page
