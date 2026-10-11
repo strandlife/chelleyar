@@ -12,6 +12,7 @@ from views.edit_view import build_edit_view
 from views.stats_view import build_stats_view
 from views.catchup_view import build_catchup_view
 from views.about_view import build_about_view
+from views.science_view import build_science_view
 
 
 THEME_KEY = "cheleh_yar_theme_mode"
@@ -27,6 +28,7 @@ NAV_STACKS = {
     "/edit":    ["/", "/edit"],
     "/about":   ["/", "/about"],
     "/status":  ["/", "/status"],
+    "/science":  ["/", "/science"],
     "/stats":   ["/", "/status", "/stats"],
     "/day":     ["/", "/status", "/day"],
     "/catchup": ["/", "/status", "/catchup"],
@@ -169,6 +171,19 @@ class ChelehApp:
                 ),
                 controls=[build_add_view(self)],
             )
+        
+        if route == "/science":
+            return ft.View(
+                route="/science",
+                appbar=make_appbar(
+                    title="پشتوانه‌ی علمی چله",
+                    subtitle="مغز چگونه عادت می‌سازد",
+                    show_back=True,
+                    on_back=lambda e: self.go_back("/"),
+                ),
+                scroll=ft.ScrollMode.AUTO,
+                controls=[build_science_view(self)],
+            )
 
         if route == "/edit":
             return ft.View(
@@ -265,6 +280,11 @@ class ChelehApp:
                 title="چله‌یار",
                 actions=[
                     import_cheleh_action(self),
+                    ft.IconButton(
+                        ft.Icons.PSYCHOLOGY,
+                        tooltip="پشتوانه علمی",
+                        on_click=lambda e: self.navigate("/science"),
+                    ),
                     ft.IconButton(
                         theme_icon,
                         tooltip="حالت شب/روز",
