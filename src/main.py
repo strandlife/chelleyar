@@ -34,6 +34,7 @@ async def main(page: ft.Page):
     await app.init()
 
     page.on_route_change = app.route_change
+    page.on_view_pop = app.view_pop
     app.route_change(None)
 
 
