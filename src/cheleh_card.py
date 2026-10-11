@@ -111,6 +111,108 @@ def _show_share_dialog(app, c):
     page.show_dialog(dialog)
 
 
+# ==================================================================
+# نوار فرایند چندرنگ (ترکیب سطح + پیشرفت)
+# ==================================================================
+
+def _get_day_state(c, day: int):
+    """(رنگ، tooltip) وضعیت یک روز مشخص برای نوار چندرنگ."""
+    log = c.daily_logs.get(str(day))
+
+    # روزِ ثبت‌شده با نتیجه مشخص
+    if log and log.get("result"):
+        idx = log.get("level_index")
+        if log["result"] == "success":
+            if isinstance(idx, int) and 0 <= idx < len(c.levels or []):
+                lv = c.levels[idx]
+                return (lv.get("color", "#4CAF50"),
+                        f"روز {day}: {lv.get('title') or 'بدون عنوان'} — موفق ✅")
+            return "#2E7D32", f"روز {day}: موفق ✅"
+        # شکست
+        if not (isinstance(idx, int) and 0 <= idx < len(c.levels or [])):
+            idx = c.failure_level_index()
+        title = "بدون عنوان"
+        if isinstance(idx, int) and 0 <= idx < len(c.levels or []):
+            title = c.levels[idx].get("title") or "بدون عنوان"
+        return ft.Colors.RED_400, f"روز {day}: {title} — شکست ❌"
+
+    # صبح/شب ثبت شده ولی نتیجه هنوز مشخص نیست
+    if log and (log.get("morning_saved") or log.get("evening_saved")):
+        idx = log.get("level_index")
+        if isinstance(idx, int) and 0 <= idx < len(c.levels or []):
+            lv = c.levels[idx]
+            return (ft.Colors.with_opacity(0.5, lv.get("color", "#4CAF50")),
+                    f"روز {day}: {lv.get('title')} — در انتظار نتیجه ⏳")
+        return ft.Colors.AMBER_400, f"روز {day}: در انتظار نتیجه ⏳"
+
+    # امروز — هنوز چیزی ثبت نشده
+    if day == c.current_day and c.status != "completed":
+        return ft.Colors.PRIMARY, f"روز {day} — امروز 📍"
+
+    # روزهای آینده
+    return ft.Colors.with_opacity(0.18, ft.Colors.GREY), f"روز {day}"
+
+
+def build_level_bar(c, height: int = 10, expand: bool = False) -> ft.Control:
+    """نوار فرایند چندرنگ — هر روز یک قطعه به رنگِ سطحِ همان روز.
+
+    ⚠️ expand=True فقط وقتی معنا دارد که نوار داخل یک Row افقی باشد.
+    """
+    if not c.total_days:
+        bar = ft.Container(height=height)
+        bar.expand = expand
+        return bar
+
+    segments = []
+    for day in range(1, c.total_days + 1):
+        color, tip = _get_day_state(c, day)
+        seg = ft.Container(expand=True, bgcolor=color, tooltip=tip)
+
+        # حلقه دور قطعه‌ی «امروز»
+        if day == c.current_day and c.status != "completed":
+            ring = (ft.Colors.with_opacity(0.55, ft.Colors.WHITE)
+                    if color == ft.Colors.PRIMARY else ft.Colors.PRIMARY)
+            seg.border = ft.Border.all(1.5, ring)
+
+        segments.append(seg)
+
+    bar = ft.Container(
+        content=ft.Row(
+            segments,
+            spacing=0,
+            vertical_alignment=ft.CrossAxisAlignment.STRETCH,
+        ),
+        height=height,
+        bgcolor=ft.Colors.with_opacity(0.12, ft.Colors.GREY),
+        border_radius=height / 2,
+        clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+    )
+    bar.expand = expand
+    return bar
+
+
+def _legend_dot(color: str, text: str) -> ft.Control:
+    return ft.Row(
+        [
+            ft.Container(width=8, height=8, bgcolor=color, border_radius=4),
+            ft.Text(text, size=9, color=ft.Colors.GREY_600,
+                    max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
+        ],
+        spacing=4, tight=True,
+    )
+
+
+def build_level_legend(c) -> ft.Control:
+    """راهنمای رنگ‌های نوار — جایگزین «بخش سطح» قبلی."""
+    items = [
+        _legend_dot(lv.get("color", "#4CAF50"),
+                    lv.get("title") or "بدون عنوان")
+        for lv in (c.levels or [])
+    ]
+    items.append(_legend_dot(ft.Colors.RED_400, "شکست"))
+    items.append(_legend_dot(ft.Colors.PRIMARY, "امروز"))
+    return ft.Row(items, spacing=10, wrap=True, run_spacing=4)
+    
 def get_level_info(c) -> dict:
     """اطلاعات سطح اجرای «روز جاری» را برای نمایش برمی‌گرداند.
 
@@ -125,8 +227,6 @@ def get_level_info(c) -> dict:
     if c.status == "completed":
         return {"mode": "done"}
 
-    # ⚠️ عمداً از get_today_log() استفاده نکردیم چون اگر لاگ نباشد،
-    #    لاگ جدید می‌سازد و دیکشنری daily_logs را شلوغ می‌کند.
     log = c.daily_logs.get(str(c.current_day))
 
     has_content = bool(log) and (
@@ -156,35 +256,6 @@ def get_level_info(c) -> dict:
         mode = "pending"
 
     return {"mode": mode, "level": level, "score": log.get("score", 0)}
-
-
-def _make_level_chip(info: dict) -> ft.Container:
-    mode = info["mode"]
-
-    if mode == "done":
-        return _make_chip("چله تکمیل شد", "#2E7D32",
-                          icon=ft.Icons.VERIFIED)
-
-    if mode == "empty":
-        return _make_chip("امروز ثبت نشده", ft.Colors.GREY_500)
-
-    lv = info.get("level")
-    if lv:
-        color = lv.get("color", "#4CAF50")
-        text = lv.get("title") or "بدون عنوان"
-    elif mode == "failure":
-        color = ft.Colors.RED_400
-        text = "شکست"
-    else:
-        color = ft.Colors.GREY_500
-        text = "سطح نامشخص"
-
-    icon = {
-        "success": ft.Icons.CHECK_CIRCLE,
-        "failure": ft.Icons.CANCEL,
-    }.get(mode)
-
-    return _make_chip(text, color, icon=icon)
 
 
 # ==================================================================
@@ -218,6 +289,7 @@ def build_cheleh_card(app, c) -> ft.Control:
     prog = c.progress()
     is_done = c.status == "completed"
     ratio = prog / c.total_days if c.total_days else 0
+    accent = "#2E7D32" if is_done else ft.Colors.PRIMARY
 
     # ---------- دایره روز ----------
     if is_done:
@@ -257,20 +329,13 @@ def build_cheleh_card(app, c) -> ft.Control:
     )
 
     # ---------- ردیف سطح اجرا ----------
-    info = get_level_info(c)
-    chip = _make_level_chip(info)
-
-    status_children = []
-    if info["mode"] in ("success", "failure", "pending"):
-        status_children.append(
-            ft.Text("سطح امروز:", size=10, color=ft.Colors.GREY_500))
-    status_children += [chip, ft.Container(expand=True)]
-    status_children.append(
-        ft.Text(f"روز {day} از {c.total_days}",
-                size=10, color=ft.Colors.GREY_500))
-
-    status_row = ft.Row(
-        status_children, spacing=6,
+    bar_row = ft.Row(
+        [
+            build_level_bar(c, height=10, expand=True),
+            ft.Text(f"{int(ratio * 100)}٪", size=10, color=accent,
+                    weight=ft.FontWeight.BOLD),
+        ],
+        spacing=8,
         vertical_alignment=ft.CrossAxisAlignment.CENTER,
     )
 
@@ -341,20 +406,7 @@ def build_cheleh_card(app, c) -> ft.Control:
                 title_row,
                 ft.Text(c.task, size=11, color=ft.Colors.GREY_600,
                         max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
-                ft.Container(height=6),
-                ft.Row([
-                    ft.ProgressBar(
-                        value=ratio,
-                        color=bar_color,
-                        bgcolor=ft.Colors.with_opacity(0.12, bar_color),
-                        height=5, border_radius=3, expand=True,
-                    ),
-                    ft.Text(f"{int(ratio * 100)}٪", size=10,
-                            color=bar_color, weight=ft.FontWeight.BOLD),
-                ], spacing=8,
-                    vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                ft.Container(height=4),
-                status_row,
+                bar_row,
             ], spacing=3, expand=True),
             ft.IconButton(
                 ft.Icons.MORE_VERT,
