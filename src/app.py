@@ -10,6 +10,7 @@ from views.add_view import build_add_view
 from views.status_view import build_status_view
 from views.edit_view import build_edit_view
 from views.stats_view import build_stats_view
+from views.backup_view import build_backup_view
 from views.catchup_view import build_catchup_view
 from views.about_view import build_about_view
 from views.science_view import build_science_view
@@ -28,6 +29,7 @@ NAV_STACKS = {
     "/about":   ["/", "/about"],
     "/status":  ["/", "/status"],
     "/science":  ["/", "/science"],
+    "/backup":  ["/", "/backup"],
     "/stats":   ["/", "/status", "/stats"],
     "/day":     ["/", "/status", "/day"],
     "/catchup": ["/", "/status", "/catchup"],
@@ -184,6 +186,18 @@ class ChellehApp:
                 controls=[build_science_view(self)],
             )
 
+        if route == "/backup":
+            return ft.View(
+                route="/backup",
+                appbar=make_appbar(
+                    title="پشتیبان‌گیری",
+                    subtitle="صدور و ورود داده‌ها",
+                    show_back=True,
+                    on_back=lambda e: self.go_back("/"),
+                ),
+                scroll=ft.ScrollMode.AUTO,
+                controls=[build_backup_view(self)],
+            )
         if route == "/edit":
             return ft.View(
                 route="/edit",
@@ -288,6 +302,11 @@ class ChellehApp:
                         theme_icon,
                         tooltip="حالت شب/روز",
                         on_click=lambda e: self.page.run_task(self.toggle_theme),
+                    ),
+                    ft.IconButton(
+                        ft.Icons.BACKUP_OUTLINED,
+                        tooltip="پشتیبان‌گیری",
+                        on_click=lambda e: self.navigate("/backup"),
                     ),
                     ft.IconButton(
                         ft.Icons.INFO_OUTLINE,
