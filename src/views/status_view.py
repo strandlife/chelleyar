@@ -5,13 +5,13 @@ from utils import to_jalali, readable_text_color, to_persian_digits, get_unrecor
 
 
 def build_status_view(app) -> ft.Control:
-    c = app.current_cheleh
+    c = app.current_chelleh
     if not c:
         return ft.Container(
             content=ft.Text("چله‌ای انتخاب نشده"),
             padding=40,
         )
-
+    
     prog = c.progress()
     is_done = c.status == "completed"
 
@@ -24,7 +24,7 @@ def build_status_view(app) -> ft.Control:
     # ---------- تاریخچه (جدا) ----------
     history = _build_history_section(c)
 
-    if app.current_cheleh and get_unrecorded_days(app.current_cheleh):
+    if app.current_chelleh and get_unrecorded_days(app.current_chelleh):
             app.navigate("/catchup")
     
     # ---------- UI ----------
@@ -38,11 +38,19 @@ def build_status_view(app) -> ft.Control:
                 ft.Row([
                     ft.Icon(ft.Icons.CALENDAR_VIEW_WEEK, size=18,
                             color=ft.Colors.PRIMARY),
-                    ft.Text("روزها", size=14, weight=ft.FontWeight.BOLD),
-                ], spacing=8),
+                    ft.Text(
+                        "روزها",
+                        size=14,
+                        weight=ft.FontWeight.BOLD
+                        ),
+                    ],
+                    spacing=8
+                ),
                 ft.Text(
                     "برای ثبت یادداشت و وضعیت، روی هر روز کلیک کنید",
-                    size=11, color=ft.Colors.GREY_600),
+                    size=11,
+                    color=ft.Colors.GREY_600
+                    ),
                 ft.Container(height=8),
                 grid,
 
@@ -64,21 +72,31 @@ def _build_summary_card(c, prog, is_done) -> ft.Container:
         status_label = "تکمیل شده ✅"
         status_color = "#2E7D32"
     else:
-        status_label = f"روز {c.current_day} از {c.total_days}"
+        current_day = to_persian_digits(str(c.current_day))
+        total_days = to_persian_digits(str(c.total_days))
+        status_label = f"روز {current_day} از {total_days}"
         status_color = ft.Colors.PRIMARY
 
     return ft.Container(
         content=ft.Column([
             ft.Row([
                 ft.Column([
-                    ft.Text(c.display_name, size=16,
-                            weight=ft.FontWeight.BOLD),
-                    ft.Text(c.name, size=11, color=ft.Colors.GREY_600),
+                    ft.Text(
+                        c.display_name,
+                        size=16,
+                        weight=ft.FontWeight.BOLD),
+                    ft.Text(
+                        c.name,
+                        size=11,
+                        color=ft.Colors.GREY_600),
                 ], spacing=2, expand=True),
                 ft.Container(
-                    content=ft.Text(status_label, size=10,
-                                    color=ft.Colors.WHITE,
-                                    weight=ft.FontWeight.BOLD),
+                    content=ft.Text(
+                        status_label,
+                        size=10,
+                        color=ft.Colors.WHITE,
+                        weight=ft.FontWeight.BOLD
+                        ),
                     padding=ft.Padding.symmetric(vertical=6, horizontal=12),
                     bgcolor=status_color,
                     border_radius=10,
@@ -87,11 +105,17 @@ def _build_summary_card(c, prog, is_done) -> ft.Container:
                 vertical_alignment=ft.CrossAxisAlignment.CENTER),
             ft.Container(height=10),
             ft.Row([
-                ft.Text(f"{prog} روز موفق", size=11,
-                        color=ft.Colors.GREY_600),
+                ft.Text(
+                    f"{to_persian_digits(str(prog))} روز موفق",
+                    size=11,
+                    color=ft.Colors.GREY_600
+                    ),
                 ft.Container(expand=True),
-                ft.Text(f"دوره {c.cycle_number}", size=11,
-                        color=ft.Colors.GREY_600),
+                ft.Text(
+                    f"دوره {to_persian_digits(str(c.cycle_number))}",
+                    size=11,
+                    color=ft.Colors.GREY_600
+                    ),
             ]),
             ft.Container(height=4),
             ft.ProgressBar(
@@ -225,9 +249,12 @@ def _build_history_section(c) -> ft.Control | None:
                             ft.Text(f"دوره {h['cycle']}", size=12,
                                     weight=ft.FontWeight.BOLD),
                             ft.Container(
-                                content=ft.Text(status_text, size=9,
-                                                color=ft.Colors.WHITE,
-                                                weight=ft.FontWeight.BOLD),
+                                content=ft.Text(
+                                    status_text,
+                                    size=9,
+                                    color=ft.Colors.WHITE,
+                                    weight=ft.FontWeight.BOLD
+                                    ),
                                 padding=ft.Padding.symmetric(
                                     vertical=2, horizontal=8),
                                 bgcolor=status_color,
@@ -239,9 +266,12 @@ def _build_history_section(c) -> ft.Control | None:
                             f"{to_jalali(date.fromisoformat(h['end_date']))}",
                             size=10, color=ft.Colors.GREY_600),
                     ], spacing=2, expand=True),
-                    ft.Text(f"{h['days_completed']} روز",
-                            size=11, weight=ft.FontWeight.BOLD,
-                            color=status_color),
+                    ft.Text(
+                        f"{h['days_completed']} روز",
+                        size=11,
+                        weight=ft.FontWeight.BOLD,
+                        color=status_color
+                        ),
                 ], spacing=10,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER),
                 padding=10,
@@ -254,13 +284,19 @@ def _build_history_section(c) -> ft.Control | None:
         content=ft.Column([
             ft.Row([
                 ft.Icon(ft.Icons.HISTORY, size=18, color=ft.Colors.PRIMARY),
-                ft.Text("تاریخچه دوره‌ها", size=14,
-                        weight=ft.FontWeight.BOLD),
+                ft.Text(
+                    "تاریخچه دوره‌ها",
+                    size=14,
+                    weight=ft.FontWeight.BOLD
+                    ),
                 ft.Container(expand=True),
                 ft.Container(
-                    content=ft.Text(f"{len(c.history)} دوره", size=10,
-                                    color=ft.Colors.WHITE,
-                                    weight=ft.FontWeight.BOLD),
+                    content=ft.Text(
+                        f"{to_persian_digits(len(c.history))} دوره",
+                        size=10,
+                        color=ft.Colors.WHITE,
+                        weight=ft.FontWeight.BOLD
+                        ),
                     padding=ft.Padding.symmetric(vertical=3, horizontal=10),
                     bgcolor=ft.Colors.PRIMARY,
                     border_radius=8,

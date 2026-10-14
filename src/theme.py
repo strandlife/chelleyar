@@ -3,7 +3,7 @@ import base64
 import json
 import uuid
 from datetime import date
-from models import Cheleh
+from models import Chelleh
 from urllib.parse import unquote
 
 
@@ -341,7 +341,7 @@ def show_import_dialog(app):
         if d is None:
             return   # خطا قبلاً زیر فیلد نشان داده شده
 
-        c = Cheleh(
+        c = Chelleh(
             id=str(uuid.uuid4()),
             name=d["name"],
             display_name=d["display_name"] or d["name"],
@@ -355,8 +355,8 @@ def show_import_dialog(app):
             history=[],
             status="active",
         )
-        app.chelehs.append(c)
-        app.db.save_cheleh(c)
+        app.chellehs.append(c)
+        app.db.save_chelleh(c)
         page.pop_dialog()
         app.snack(f"چله «{c.display_name}» اضافه شد 🎉")
         app.refresh()
@@ -396,7 +396,7 @@ def show_import_dialog(app):
     page.show_dialog(dialog)
 
 
-def import_cheleh_action(app) -> ft.IconButton:
+def import_chelleh_action(app) -> ft.IconButton:
     """دکمه «دریافت چله» برای قرارگیری در actions اپ‌بار"""
     return ft.IconButton(
         ft.Icons.INBOX_OUTLINED,

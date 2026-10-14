@@ -1,5 +1,5 @@
 import flet as ft
-from app import ChelehApp
+from app import ChellehApp
 from database import Database
 from theme import app_theme, app_dark_theme
 
@@ -30,7 +30,7 @@ async def main(page: ft.Page):
     db = Database()
 
     # ساخت و راه‌اندازی اپلیکیشن
-    app = ChelehApp(page, db)
+    app = ChellehApp(page, db)
     await app.init()
 
     page.on_route_change = app.route_change

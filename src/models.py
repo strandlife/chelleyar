@@ -3,7 +3,7 @@ from datetime import date
 
 
 @dataclass
-class Cheleh:
+class Chelleh:
     id: str
     name: str
     display_name: str

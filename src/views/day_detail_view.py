@@ -1,12 +1,15 @@
 from datetime import date
 import flet as ft
 
-from utils import to_jalali, readable_text_color
+from utils import to_jalali, to_persian_digits
+
+
+# edit and a day to chelleh
 
 
 def build_day_detail_view(app) -> ft.Control:
     page = app.page
-    c = app.current_cheleh
+    c = app.current_chelleh
 
     if not c or not app.selected_day:
         return _error_view(app, "روز انتخاب نشده")
@@ -70,34 +73,49 @@ def _build_day_header(c, day, log, is_editable) -> ft.Container:
     return ft.Container(
         content=ft.Row([
             ft.Container(
-                content=ft.Text(str(day), size=22,
-                                weight=ft.FontWeight.BOLD,
-                                color=ft.Colors.WHITE),
+                content=ft.Text(
+                    to_persian_digits(str(day)),
+                    size=22,
+                    weight=ft.FontWeight.BOLD,
+                    color=ft.Colors.WHITE
+                    ),
                 width=60, height=60,
                 bgcolor=badge_color,
                 border_radius=30,
                 alignment=ft.Alignment.CENTER,
             ),
             ft.Column([
-                ft.Text(f"روز {day} از {c.total_days}", size=15,
-                        weight=ft.FontWeight.BOLD),
-                ft.Text(date_str, size=11, color=ft.Colors.GREY_600),
+                ft.Text(
+                    f"روز {to_persian_digits(str(day))} از {to_persian_digits(str(c.total_days))}",
+                    size=15,
+                    weight=ft.FontWeight.BOLD
+                    ),
+                ft.Text(
+                    to_persian_digits(date_str),
+                    size=11,
+                    color=ft.Colors.GREY_600
+                    ),
                 ft.Container(
-                    content=ft.Text(badge_text, size=10,
-                                    color=ft.Colors.WHITE,
-                                    weight=ft.FontWeight.BOLD),
+                    content=ft.Text(
+                        badge_text, 
+                        size=10,
+                        color=ft.Colors.WHITE,
+                        weight=ft.FontWeight.BOLD
+                        ),
                     padding=ft.Padding.symmetric(vertical=3, horizontal=10),
                     bgcolor=badge_color,
                     border_radius=8,
                 ),
             ], spacing=4, expand=True),
-        ], spacing=12,
-            vertical_alignment=ft.CrossAxisAlignment.CENTER),
+        ],
+        spacing=12,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER),
         padding=16,
         border_radius=16,
         bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
         shadow=ft.BoxShadow(
-            blur_radius=8, spread_radius=0,
+            blur_radius=8,
+            spread_radius=0,
             color=ft.Colors.with_opacity(0.06, ft.Colors.BLACK),
             offset=ft.Offset(0, 3),
         ),
@@ -108,10 +126,21 @@ def _build_day_header(c, day, log, is_editable) -> ft.Container:
 def _editable_view(app, c, day, log, day_header) -> ft.Control:
     page = app.page
 
+    morning_badge = ft.Icon(
+        ft.Icons.CHECK_CIRCLE, color=ft.Colors.GREEN, size=20,
+        tooltip="ذخیره شده", visible=log.get("morning_saved", False),
+    )
+    evening_badge = ft.Icon(
+        ft.Icons.CHECK_CIRCLE, color=ft.Colors.GREEN, size=20,
+        tooltip="ذخیره شده", visible=log.get("evening_saved", False),
+    )
+
     # ---------- یادداشت صبح ----------
     morning_note = ft.TextField(
         label="یادداشت صبح",
-        multiline=True, min_lines=3, max_lines=6,
+        multiline=True,
+        min_lines=3,
+        max_lines=6,
         value=log.get("morning_note", ""),
         hint_text="قبل از شروع روز چه قصدی دارید؟",
         border_radius=12,
@@ -121,9 +150,11 @@ def _editable_view(app, c, day, log, day_header) -> ft.Control:
     async def save_morning(e):
         log["morning_note"] = morning_note.value
         log["morning_saved"] = True
-        app.db.save_cheleh(c)
+        morning_badge.visible = True
+        morning_badge.update()
+        app.db.save_chelleh(c)
         app.snack("یادداشت صبح ذخیره شد ☀️")
-        _refresh(app)
+        
 
     morning_card = _note_card(
         icon=ft.Icons.WB_SUNNY,
@@ -140,7 +171,7 @@ def _editable_view(app, c, day, log, day_header) -> ft.Control:
                 padding=ft.Padding.symmetric(vertical=10, horizontal=16),
             ),
         ),
-        is_saved=log.get("morning_saved", False),
+        saved_badge=morning_badge,
     )
 
     # ---------- یادداشت پایان روز ----------
@@ -156,9 +187,11 @@ def _editable_view(app, c, day, log, day_header) -> ft.Control:
     async def save_evening(e):
         log["evening_note"] = evening_note.value
         log["evening_saved"] = True
-        app.db.save_cheleh(c)
+        evening_badge.visible = True
+        evening_badge.update()
+        app.db.save_chelleh(c)
         app.snack("یادداشت پایان روز ذخیره شد 🌙")
-        _refresh(app)
+        
 
     evening_card = _note_card(
         icon=ft.Icons.NIGHTLIGHT,
@@ -175,7 +208,7 @@ def _editable_view(app, c, day, log, day_header) -> ft.Control:
                 padding=ft.Padding.symmetric(vertical=10, horizontal=16),
             ),
         ),
-        is_saved=log.get("evening_saved", False),
+        saved_badge=evening_badge,
     )
 
     # ---------- انتخاب سطح ----------
@@ -191,7 +224,7 @@ def _editable_view(app, c, day, log, day_header) -> ft.Control:
         options=[
             ft.DropdownOption(
                 key=str(i),
-                text=f"{lv['title']} ({lv['score']} امتیاز)",
+                text=f"{lv['title']} ({to_persian_digits(str(lv['score']))} امتیاز)",
             )
             for i, lv in enumerate(c.levels)
         ],
@@ -200,7 +233,7 @@ def _editable_view(app, c, day, log, day_header) -> ft.Control:
     submit_btn = ft.Button(
         "ثبت وضعیت و بازگشت",
         icon=ft.Icons.CHECK_CIRCLE,
-        on_click=lambda e: _submit_day(app, c, log, level_dd, submit_btn),
+        on_click=lambda e: _submit_day(app, c, log, level_dd, evening_note, morning_note),
         style=ft.ButtonStyle(
             bgcolor=ft.Colors.PRIMARY,
             color=ft.Colors.WHITE,
@@ -214,9 +247,14 @@ def _editable_view(app, c, day, log, day_header) -> ft.Control:
         content=ft.Column([
             ft.Row([
                 ft.Icon(ft.Icons.RULE, size=18, color=ft.Colors.PRIMARY),
-                ft.Text("وضعیت امروز", size=14,
-                        weight=ft.FontWeight.BOLD),
-            ], spacing=8),
+                ft.Text(
+                    "وضعیت امروز",
+                    size=14,
+                    weight=ft.FontWeight.BOLD
+                    ),
+                ],
+                spacing=8
+            ),
             ft.Container(height=4),
             level_dd,
             ft.Container(height=8),
@@ -368,8 +406,9 @@ def _read_note(icon, label, text, color) -> ft.Container:
 
 
 # ---------- ثبت وضعیت روز ----------
-def _submit_day(app, c, log, level_dd, submit_btn):
-    page = app.page
+def _submit_day(app, c, log, level_dd, evening_note, morning_note):
+    log["morning_note"] = morning_note.value or ""
+    log["evening_note"] = evening_note.value or ""
 
     li = int(level_dd.value or 0)
     if not (0 <= li < len(c.levels)):
@@ -396,7 +435,7 @@ def _record_success(app, c, log, li, score):
     else:
         prev = c.current_day
         c.current_day += 1
-        app.db.save_cheleh(c)
+        app.db.save_chelleh(c)
         app.snack(f"روز {prev} با موفقیت ثبت شد ✅")
         app.selected_day = None
         app.navigate("/status")
@@ -412,8 +451,6 @@ def _show_failure_dialog(app, c, log, li):
         log["date"] = date.today().isoformat()
 
         app.fail_chelleh(c)
-
-        #app.db.save_cheleh(c)
         app.snack("چله شکست خورد و از ابتدا شروع شد")
         app.selected_day = None
         app.navigate("/status")
@@ -471,11 +508,11 @@ def _show_completion_dialog(app, c):
             c.total_days += 40
             c.current_day += 1
             c.cycle_start_date = date.today().isoformat()
-            app.db.save_cheleh(c)
+            app.db.save_chelleh(c)
             app.snack(f"چله تمدید شد! از روز {c.current_day} ادامه دهید 🎉")
         else:
             c.status = "completed"
-            app.db.save_cheleh(c)
+            app.db.save_chelleh(c)
             app.snack("چله با موفقیت به پایان رسید 🎉")
         app.selected_day = None
         app.navigate("/status")
@@ -517,7 +554,7 @@ def _show_completion_dialog(app, c):
 
 # ---------- کارت یادداشت ----------
 def _note_card(icon, title, subtitle, color,
-               note_field, save_btn, is_saved) -> ft.Container:
+               note_field, save_btn, saved_badge) -> ft.Container:
     # ---------- ساخت لیست کنترل‌های هدر به‌صورت جداگانه ----------
     header_children = [
         ft.Container(
@@ -532,11 +569,8 @@ def _note_card(icon, title, subtitle, color,
         ], spacing=0, expand=True),
     ]
 
-    if is_saved:
-        header_children.append(
-            ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.Colors.GREEN,
-                    size=20, tooltip="ذخیره شده")
-        )
+    if saved_badge is not None:
+        header_children.append(saved_badge)
 
     header = ft.Row(
         header_children,

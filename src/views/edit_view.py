@@ -1,7 +1,7 @@
 import flet as ft
 
-from theme import gradient_header, elevated_card
-from utils import COLOR_OPTIONS
+from theme import elevated_card
+from utils import COLOR_OPTIONS, to_persian_digits
 
 
 def build_edit_view(app) -> ft.Control:

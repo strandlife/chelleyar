@@ -1,8 +1,8 @@
 import flet as ft
-from models import Cheleh
+from models import Chelleh
 from datetime import date
-from utils import get_unrecorded_days
-from theme import make_appbar, import_cheleh_action
+from utils import get_unrecorded_days, to_persian_digits
+from theme import make_appbar, import_chelleh_action
 from database import Database
 from views.list_view import build_list_view
 from views.day_detail_view import build_day_detail_view
@@ -15,7 +15,6 @@ from views.about_view import build_about_view
 from views.science_view import build_science_view
 
 
-THEME_KEY = "cheleh_yar_theme_mode"
 
 # ==================================================================
 # ناوبری — طبق مدل مسیریابی فلت
@@ -38,16 +37,16 @@ NAV_STACKS = {
 CHELEH_ROUTES = ("/status", "/stats", "/day", "/catchup")
 
 
-class ChelehApp:
+class ChellehApp:
     """هسته برنامه: نگه‌داری state، ذخیره‌سازی و مسیریابی"""
 
     def __init__(self, page: ft.Page, db: Database):
         self.page = page
         self.db = db
-        self.chelehs: list[Cheleh] = []
+        self.chellehs: list[Chelleh] = []
         self.selected_day = None
-        self.editing_cheleh = None
-        self.current_cheleh: Cheleh | None = None
+        self.editing_chelleh = None
+        self.current_chelleh: Chelleh | None = None
         self.theme_mode = "light"
 
     # ----------------------------------------------------------------
@@ -56,7 +55,7 @@ class ChelehApp:
 
     async def init(self):
         """بارگذاری داده‌ها از SharedPreferences"""
-        self.chelehs = self.db.load_chelehs()
+        self.chellehs = self.db.load_chellehs()
         saved = self.db.get_setting("theme_mode", "light")
         if saved in ("light", "dark", "system"):
             self.theme_mode = saved
@@ -64,8 +63,8 @@ class ChelehApp:
 
     async def save(self):
         """ذخیره‌سازی داده‌ها"""
-        for c in self.chelehs:
-            self.db.save_cheleh(c)
+        for c in self.chellehs:
+            self.db.save_chelleh(c)
 
     def snack(self, msg: str):
         """نمایش پیام موقت"""
@@ -113,17 +112,17 @@ class ChelehApp:
 
     def open_edit(self, ch):
         """رفتن به صفحه ویرایش چله"""
-        self.editing_cheleh = ch
+        self.editing_chelleh = ch
         self.navigate("/edit")
 
     def open_stats(self, ch):
         """رفتن به صفحه آمار برای یک چله"""
-        self.current_cheleh = ch
+        self.current_chelleh = ch
         self.navigate("/stats")
 
-    def open_status(self, ch: Cheleh):
+    def open_status(self, ch: Chelleh):
         """رفتن به صفحه وضعیت یک چله"""
-        self.current_cheleh = ch
+        self.current_chelleh = ch
         self.navigate("/status")
 
     # ----------------------------------------------------------------
@@ -135,7 +134,7 @@ class ChelehApp:
         stack = NAV_STACKS.get(route, ["/"])
 
         # بدون چله‌ی انتخاب‌شده، ویوهای وابسته به چله ساخته نمی‌شوند
-        if any(r in CHELEH_ROUTES for r in stack) and not self.current_cheleh:
+        if any(r in CHELEH_ROUTES for r in stack) and not self.current_chelleh:
             return ["/"]
 
         # صفحه‌ی روز بدون روزِ انتخاب‌شده بی‌معناست — تا /status می‌رویم
@@ -157,7 +156,7 @@ class ChelehApp:
 
     def _make_view(self, route: str) -> ft.View:
         """ساخت یک ویو بر اساس مسیر آن."""
-        ch = self.current_cheleh
+        ch = self.current_chelleh
         subtitle = ch.display_name if ch else ""
 
         if route == "/add":
@@ -190,8 +189,8 @@ class ChelehApp:
                 route="/edit",
                 appbar=make_appbar(
                     title="ویرایش چله",
-                    subtitle=(self.editing_cheleh.display_name
-                              if self.editing_cheleh else ""),
+                    subtitle=(self.editing_chelleh.display_name
+                              if self.editing_chelleh else ""),
                     show_back=True,
                     on_back=lambda e: self.go_back("/"),
                 ),
@@ -217,7 +216,7 @@ class ChelehApp:
                 route="/day",
                 appbar=make_appbar(
                     title="جزئیات روز",
-                    subtitle=(f"روز {self.selected_day}"
+                    subtitle=(f"روز {to_persian_digits(str(self.selected_day))}"
                               if self.selected_day else ""),
                     show_back=True,
                     on_back=lambda e: self.go_back("/status"),
@@ -279,7 +278,7 @@ class ChelehApp:
             appbar=make_appbar(
                 title="چله‌یار",
                 actions=[
-                    import_cheleh_action(self),
+                    import_chelleh_action(self),
                     ft.IconButton(
                         ft.Icons.PSYCHOLOGY,
                         tooltip="پشتوانه علمی",
@@ -335,13 +334,13 @@ class ChelehApp:
 
     def check_missed_days(self):
         """اولین چله فعالی که روز ثبت‌نشده دارد را پیدا و به صفحه تعیین تکلیف برو"""
-        for ch in self.chelehs:
+        for ch in self.chellehs:
             if ch.status == "active" and get_unrecorded_days(ch):
-                self.current_cheleh = ch
+                self.current_chelleh = ch
                 self.navigate("/catchup")
                 return
 
-    def fail_chelleh(self, c: Cheleh):
+    def fail_chelleh(self, c: Chelleh):
         """شکست چله: بایگانی دوره فعلی و شروع دوره جدید از امروز"""
         today_iso = date.today().isoformat()
         c.history.append({
@@ -356,4 +355,4 @@ class ChelehApp:
         c.current_day = 1
         c.daily_logs = {}
         c.status = "active"
-        self.db.save_cheleh(c)
+        self.db.save_chelleh(c)

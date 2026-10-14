@@ -4,7 +4,7 @@ import uuid
 
 import flet as ft
 
-from models import Cheleh
+from models import Chelleh
 from theme import elevated_card
 from utils import COLOR_OPTIONS, to_jalali
 
@@ -294,7 +294,7 @@ def build_add_view(app) -> ft.Control:
 
         start_date_iso = selected_start_date["value"].isoformat()
 
-        c = Cheleh(
+        c = Chelleh(
             id=str(uuid.uuid4()),
             name=name,
             display_name=display_field.value.strip() or name,
@@ -308,8 +308,8 @@ def build_add_view(app) -> ft.Control:
             history=[],
             status="active",
         )
-        app.chelehs.append(c)
-        app.db.save_cheleh(c)
+        app.chellehs.append(c)
+        app.db.save_chelleh(c)
         app.snack("چله با موفقیت ساخته شد 🎉")
         await page.push_route("/")
 
