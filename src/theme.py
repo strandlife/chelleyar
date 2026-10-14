@@ -247,7 +247,6 @@ def parse_share_code(code: str) -> dict:
         "total_days": total_days,
     }
 
-
 def show_import_dialog(app):
     page = app.page
 
@@ -334,12 +333,16 @@ def show_import_dialog(app):
 
     code_field.suffix.on_click = paste_from_clipboard
 
-    def do_import(e=None):
-        if parsed["data"] is None:
-            check_code()
+    # ---------- منطق واقعی import (بدون UI) ----------
+    async def perform_import():
         d = parsed["data"]
         if d is None:
-            return   # خطا قبلاً زیر فیلد نشان داده شده
+            # یک بار دیگر بررسی می‌کنیم
+            check_code()
+            d = parsed["data"]
+        if d is None:
+            app.snack("کد معتبر نیست")
+            return
 
         c = Chelleh(
             id=str(uuid.uuid4()),
@@ -357,9 +360,26 @@ def show_import_dialog(app):
         )
         app.chellehs.append(c)
         app.db.save_chelleh(c)
-        page.pop_dialog()
         app.snack(f"چله «{c.display_name}» اضافه شد 🎉")
         app.refresh()
+
+    # ---------- کنترل بستن دیالوگ ----------
+    def on_cancel(e):
+        dialog._confirmed = False
+        page.pop_dialog()
+
+    def on_confirm(e):
+        # اعتبارسنجی سریع قبل از بستن دیالوگ
+        if parsed["data"] is None:
+            check_code()
+            if parsed["data"] is None:
+                return   # خطا زیر فیلد نمایش داده شده، دیالوگ باز می‌ماند
+        dialog._confirmed = True
+        page.pop_dialog()
+
+    def on_dismiss(e):
+        if getattr(dialog, "_confirmed", False):
+            page.run_task(perform_import)
 
     dialog = ft.AlertDialog(
         modal=True,
@@ -379,22 +399,22 @@ def show_import_dialog(app):
             ], tight=True, spacing=10),
         ),
         actions=[
-            ft.TextButton("انصراف",
-                          on_click=lambda e: page.pop_dialog()),
+            ft.TextButton("انصراف", on_click=on_cancel),
             ft.TextButton("بررسی کد", icon=ft.Icons.QR_CODE_SCANNER,
                           on_click=check_code),
             ft.Button(
                 "افزودن چله",
                 icon=ft.Icons.ADD_CIRCLE,
-                on_click=do_import,
+                on_click=on_confirm,
                 style=ft.ButtonStyle(
                     bgcolor=ft.Colors.PRIMARY, color=ft.Colors.WHITE),
             ),
         ],
         actions_alignment=ft.MainAxisAlignment.END,
+        on_dismiss=on_dismiss,
     )
+    dialog._confirmed = False
     page.show_dialog(dialog)
-
 
 def import_chelleh_action(app) -> ft.IconButton:
     """دکمه «دریافت چله» برای قرارگیری در actions اپ‌بار"""
