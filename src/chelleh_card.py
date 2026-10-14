@@ -49,7 +49,11 @@ def _show_share_dialog(app, c):
         filled=True,
     )
 
-    async def copy_code(e=None):
+    # ------- حالت‌های دیالوگ -------
+    # action["value"] می‌تواند None, "copy" یا "close" باشد
+    action = {"value": None}
+
+    async def perform_copy():
         try:
             clipboard = _get_service(page, ft.Clipboard)
             await clipboard.set(code)
@@ -61,6 +65,21 @@ def _show_share_dialog(app, c):
         f"چله «{c.display_name}» را برای تو فرستادم 🌱\n"
         f"این کد را در اپ «چله‌یار» وارد کن:\n\n{code}"
     )
+
+    def on_dismiss(e):
+        val = action.get("value")
+        if val == "copy":
+            page.run_task(perform_copy)
+        # برای ارسال (share) کار دیگری لازم نیست —
+        # چون ShareText به‌صورت سمت-کلاینت اجرا شده.
+
+    def on_cancel(e):
+        action["value"] = None
+        page.pop_dialog()
+
+    def on_copy(e):
+        action["value"] = "copy"
+        page.pop_dialog()
 
     dialog = ft.AlertDialog(
         modal=True,
@@ -83,24 +102,22 @@ def _show_share_dialog(app, c):
             ], tight=True, spacing=10),
         ),
         actions=[
-            ft.TextButton(
-                "انصراف",
-                on_click=lambda e: page.pop_dialog(),
-            ),
+            ft.TextButton("انصراف", on_click=on_cancel),
             ft.TextButton(
                 "کپی کد",
                 icon=ft.Icons.COPY,
-                on_click=copy_code,
+                on_click=on_copy,
             ),
             ft.Button(
                 "ارسال",
                 icon=ft.Icons.SHARE,
-                # اکشن سمت کلاینت — حین همان ژست کلیک اجرا می‌شود،
-                # پس در وب هم شیت اشتراک باز می‌شود
                 action=ft.ShareText(
                     share_message,
                     subject="چله‌یار",
                 ),
+                # روی وب این دکمه بعد از اجرای ShareText بسته نمی‌شود
+                # مگر اینکه کاربر بعداً خودش ببندد.
+                on_click=on_cancel,
                 style=ft.ButtonStyle(
                     bgcolor=ft.Colors.PRIMARY,
                     color=ft.Colors.WHITE,
@@ -108,11 +125,10 @@ def _show_share_dialog(app, c):
             ),
         ],
         actions_alignment=ft.MainAxisAlignment.END,
+        on_dismiss=on_dismiss,
     )
     page.show_dialog(dialog)
 
-
-# ==================================================================
 # نوار فرایند چندرنگ (ترکیب سطح + پیشرفت)
 # ==================================================================
 
