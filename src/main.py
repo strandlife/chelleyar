@@ -31,6 +31,7 @@ async def main(page: ft.Page):
 
     # ساخت و راه‌اندازی اپلیکیشن
     app = ChellehApp(page, db)
+    app.connect_resize()
     await app.init()
 
     page.on_route_change = app.route_change
