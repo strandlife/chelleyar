@@ -1,6 +1,6 @@
 import flet as ft
 
-from nav_config import NAV_STACKS, CHELEH_ROUTES
+from nav_config import NAV_STACKS, CHELEH_ROUTES, DESKTOP_MIN_WIDTH
 from theme import make_appbar, import_chelleh_action
 from utils import to_persian_digits
 from views.list_view import build_list_view
@@ -17,7 +17,6 @@ from views.science_view import build_science_view
 
 # آستانه‌ی موبایل/دسکتاپ بر حسب پیکسل منطقی
 # (کلاس‌های اندازه‌ی پنجره در Material: compact < 600)
-DESKTOP_MIN_WIDTH = 600
 
 
 class RouterMixin:
@@ -294,3 +293,4 @@ class RouterMixin:
                 on_click=lambda e: self.navigate("/add"),
             ),
         )
+    is_desktop = _is_desktop

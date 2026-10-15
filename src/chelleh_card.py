@@ -11,6 +11,105 @@ from utils import to_persian_digits
 SHARE_PREFIX = "CHELEHYAR1:"
 
 
+def _card_actions(app, c) -> list[ft.Control]:
+    """اکشن‌های انتهای کارت — همان الگوی appbar:
+    دسکتاپ: هر چهار عمل به‌صورت آیکن مستقیم (بدون منو)
+    موبایل: فقط سه‌نقطه؛ بقیه داخل منوی آن
+    """
+    if app.is_desktop():
+        return [
+            ft.IconButton(
+                ft.Icons.EDIT_OUTLINED,
+                icon_size=20,
+                icon_color=ft.Colors.PRIMARY,
+                tooltip="ویرایش چله",
+                on_click=lambda e, ch=c: app.open_edit(ch),
+            ),
+            ft.IconButton(
+                ft.Icons.INSIGHTS_OUTLINED,
+                icon_size=20,
+                icon_color=ft.Colors.ORANGE,
+                tooltip="آمار و گزارش",
+                on_click=lambda e, ch=c: app.open_stats(ch),
+            ),
+            ft.IconButton(
+                ft.Icons.SHARE_OUTLINED,
+                icon_size=18,
+                icon_color=ft.Colors.BLUE_400,
+                tooltip="اشتراک‌گذاری چله",
+                on_click=lambda e, ch=c: _show_share_dialog(app, ch),
+            ),
+            ft.IconButton(
+                ft.Icons.DELETE_OUTLINE,
+                icon_size=20,
+                icon_color=ft.Colors.RED_400,
+                tooltip="حذف چله",
+                on_click=lambda e, ch=c: _show_delete_dialog(app, ch),
+            ),
+        ]
+
+    # ---------- منوی سه‌نقطه (موبایل) ----------
+    def open_menu(e):
+        page = app.page
+
+        def go_edit(ev):
+            page.pop_dialog()
+            app.open_edit(c)
+
+        def go_stats(ev):
+            page.pop_dialog()
+            app.open_stats(c)
+
+        def go_delete(ev):
+            page.pop_dialog()
+            _show_delete_dialog(app, c)
+
+        def go_share(ev):
+            page.pop_dialog()
+            _show_share_dialog(app, c)
+
+        dialog = ft.AlertDialog(
+            content=ft.Column([
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.EDIT_OUTLINED,
+                                    color=ft.Colors.PRIMARY),
+                    title=ft.Text("ویرایش چله"),
+                    on_click=go_edit,
+                ),
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.INSIGHTS_OUTLINED,
+                                    color=ft.Colors.ORANGE),
+                    title=ft.Text("آمار و گزارش"),
+                    on_click=go_stats,
+                ),
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.SHARE_OUTLINED,
+                                    color=ft.Colors.BLUE_400),
+                    title=ft.Text("اشتراک‌گذاری چله"),
+                    on_click=go_share,
+                ),
+                ft.Divider(height=1),
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.DELETE_OUTLINE,
+                                    color=ft.Colors.RED_400),
+                    title=ft.Text("حذف چله", color=ft.Colors.RED_400),
+                    on_click=go_delete,
+                ),
+            ], spacing=0, tight=True, width=260),
+            content_padding=ft.Padding.symmetric(vertical=8, horizontal=0),
+        )
+        page.show_dialog(dialog)
+
+    return [
+        ft.IconButton(
+            ft.Icons.MORE_VERT,
+            icon_size=20,
+            icon_color=ft.Colors.GREY_500,
+            tooltip="گزینه‌ها",
+            on_click=open_menu,
+        ),
+    ]
+
 def make_share_code(c) -> str:
     """کد اشتراک‌گذاری چله — فقط تعریف چله، بدون داده‌های شخصی."""
     payload = {
@@ -278,7 +377,6 @@ def get_level_info(c) -> dict:
 # ==================================================================
 # کارت چله
 # ==================================================================
-
 def build_chelleh_card(app, c) -> ft.Control:
     day = c.current_day
     prog = c.progress()
@@ -290,16 +388,14 @@ def build_chelleh_card(app, c) -> ft.Control:
     if is_done:
         circle_content = ft.Icon(ft.Icons.CHECK, color=ft.Colors.WHITE, size=22)
         circle_bg = "#2E7D32"
-        bar_color = "#2E7D32"
     else:
         circle_content = ft.Text(
             to_persian_digits(str(day)),
             size=16,
             weight=ft.FontWeight.BOLD,
-            color=ft.Colors.WHITE
-            )
+            color=ft.Colors.WHITE,
+        )
         circle_bg = ft.Colors.PRIMARY
-        bar_color = ft.Colors.PRIMARY
 
     # ---------- عنوان + برچسب تکمیل ----------
     title_row_children = [
@@ -309,8 +405,8 @@ def build_chelleh_card(app, c) -> ft.Control:
             weight=ft.FontWeight.BOLD,
             max_lines=1,
             overflow=ft.TextOverflow.ELLIPSIS,
-            expand=True
-            ),
+            expand=True,
+        ),
     ]
     if is_done:
         title_row_children.append(
@@ -319,8 +415,8 @@ def build_chelleh_card(app, c) -> ft.Control:
                     "تکمیل",
                     size=9,
                     color=ft.Colors.WHITE,
-                    weight=ft.FontWeight.BOLD
-                    ),
+                    weight=ft.FontWeight.BOLD,
+                ),
                 padding=ft.Padding.symmetric(vertical=3, horizontal=8),
                 bgcolor="#2E7D32",
                 border_radius=8,
@@ -341,65 +437,15 @@ def build_chelleh_card(app, c) -> ft.Control:
                 to_persian_digits(f"{int(ratio * 100)}٪"),
                 size=10,
                 color=accent,
-                weight=ft.FontWeight.BOLD
-                ),
+                weight=ft.FontWeight.BOLD,
+            ),
         ],
         spacing=8,
         vertical_alignment=ft.CrossAxisAlignment.CENTER,
     )
 
-    # ---------- منوی سه‌نقطه ----------
-    def open_menu(e):
-        page = app.page
-
-        def go_edit(ev):
-            page.pop_dialog()
-            app.open_edit(c)
-
-        def go_stats(ev):
-            page.pop_dialog()
-            app.open_stats(c)
-
-        def go_delete(ev):
-            page.pop_dialog()
-            _show_delete_dialog(app, c)
-
-        def go_share(ev):
-            page.pop_dialog()
-            _show_share_dialog(app, c)
-
-
-        dialog = ft.AlertDialog(
-            content=ft.Column([
-                ft.ListTile(
-                    leading=ft.Icon(ft.Icons.EDIT_OUTLINED,
-                                    color=ft.Colors.PRIMARY),
-                    title=ft.Text("ویرایش چله"),
-                    on_click=go_edit,
-                ),
-                ft.ListTile(
-                    leading=ft.Icon(ft.Icons.INSIGHTS_OUTLINED,
-                                    color=ft.Colors.ORANGE),
-                    title=ft.Text("آمار و گزارش"),
-                    on_click=go_stats,
-                ),
-                ft.ListTile(
-                    leading=ft.Icon(ft.Icons.SHARE_OUTLINED,
-                                    color=ft.Colors.BLUE_400),
-                    title=ft.Text("اشتراک‌گذاری چله"),
-                    on_click=go_share,
-                ),
-                ft.Divider(height=1),
-                ft.ListTile(
-                    leading=ft.Icon(ft.Icons.DELETE_OUTLINE,
-                                    color=ft.Colors.RED_400),
-                    title=ft.Text("حذف چله", color=ft.Colors.RED_400),
-                    on_click=go_delete,
-                ),
-            ], spacing=0, tight=True, width=260),
-            content_padding=ft.Padding.symmetric(vertical=8, horizontal=0),
-        )
-        page.show_dialog(dialog)
+    # ---------- اکشن‌های کارت (ریسپانسیو) ----------
+    actions = _card_actions(app, c)
 
     # ---------- کارت اصلی ----------
     card = ft.Container(
@@ -412,27 +458,23 @@ def build_chelleh_card(app, c) -> ft.Control:
                 alignment=ft.Alignment.CENTER,
             ),
             ft.Column([
-                title_row,
-                ft.Text(c.task, size=11, color=ft.Colors.GREY_600,
-                        max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
+                ft.Row([
+                    ft.Column([
+                        title_row,
+                        ft.Text(c.task, size=11, color=ft.Colors.GREY_600,
+                            max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
+                        ],
+                        expand=True,
+                    ),
+                    *actions,
+                ]),
                 bar_row,
             ], spacing=3, expand=True),
-            ft.IconButton(
-                ft.Icons.MORE_VERT,
-                icon_size=20,
-                icon_color=ft.Colors.GREY_500,
-                tooltip="گزینه‌ها",
-                on_click=open_menu,
-            ),
-            ft.IconButton(
-                ft.Icons.SHARE_OUTLINED,
-                icon_size=18,
-                icon_color=ft.Colors.GREY_500,
-                tooltip="اشتراک‌گذاری چله",
-                on_click=lambda e, ch=c: _show_share_dialog(app, ch),
-            ),
+            
+            
         ], spacing=10,
-            vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            #vertical_alignment=ft.CrossAxisAlignment.CENTER
+            ),
         padding=ft.Padding.symmetric(vertical=12, horizontal=12),
         border_radius=16,
         bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,

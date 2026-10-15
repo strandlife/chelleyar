@@ -18,3 +18,4 @@ NAV_STACKS = {
 
 # مسیرهایی که برای ساخته‌شدن به current_chelleh نیاز دارند
 CHELEH_ROUTES = ("/status", "/stats", "/day", "/catchup")
+DESKTOP_MIN_WIDTH = 600
