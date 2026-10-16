@@ -39,7 +39,7 @@ def _card_actions(app, c, is_locked: bool) -> list[ft.Control]:
         _show_share_dialog(app, c)
 
     def go_unlock(e):
-        _show_unlock_dialog(app, c)
+        show_unlock_dialog(app, c)
 
     def go_lock(e):
         """قفل کردن چله — نیاز به تعیین رمز"""
