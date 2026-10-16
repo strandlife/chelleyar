@@ -50,6 +50,7 @@ copyright = "Copyright (C) 2023-2026 by Flet"
 # is what sits behind it where transparency cannot survive - the iOS icon, the
 # macOS tile and the Android background layer. Defaults to white.
 # icon_background = "#ffffff"
-
+[tool.flet.icons]
+android='assets/icon.png'
 [tool.flet.app]
 path = "src"
