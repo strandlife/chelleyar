@@ -3,12 +3,12 @@ import flet as ft
 import flet_charts as fch
 
 from theme import elevated_card
-from utils import to_jalali
+from utils import to_jalali, to_persian_digits
 
 
 def build_stats_view(app) -> ft.Control:
     page = app.page
-    c = app.current_cheleh
+    c = app.current_chelleh
 
     # ---------- بررسی وجود چله ----------
     if not c:
@@ -53,32 +53,32 @@ def build_stats_view(app) -> ft.Control:
         _stat_card(
             icon=ft.Icons.CHECK_CIRCLE_OUTLINE,
             label="روزهای موفق",
-            value=f"{done_days}",
-            subtitle=f"از {c.total_days} روز",
+            value=to_persian_digits(f"{done_days}"),
+            subtitle=to_persian_digits(f"از {c.total_days} روز"),
             color="#2E7D32",
             col={"xs": 6, "sm": 6, "md": 3},
         ),
         _stat_card(
             icon=ft.Icons.STAR_OUTLINE,
             label="مجموع امتیاز",
-            value=f"{total_score}",
-            subtitle=f"میانگین {avg} در روز",
+            value=to_persian_digits(f"{total_score}"),
+            subtitle=to_persian_digits(f"میانگین {avg} در روز"),
             color="#F57C00",
             col={"xs": 6, "sm": 6, "md": 3},
         ),
         _stat_card(
             icon=ft.Icons.TRENDING_UP,
             label="نرخ موفقیت",
-            value=f"{success_rate}٪",
-            subtitle=f"{failed_days} روز شکست",
+            value=to_persian_digits(f"{success_rate}٪"),
+            subtitle=to_persian_digits(f"{failed_days} روز شکست"),
             color="#1976D2",
             col={"xs": 6, "sm": 6, "md": 3},
         ),
         _stat_card(
             icon=ft.Icons.EMOJI_EVENTS,
             label="بهترین روز",
-            value=f"روز {best_day_num}" if best_day_num else "—",
-            subtitle=f"{best_day_score} امتیاز" if best_day_score else "ثبت نشده",
+            value=to_persian_digits(f"روز {best_day_num}") if best_day_num else "—",
+            subtitle=to_persian_digits(f"{best_day_score} امتیاز") if best_day_score else "ثبت نشده",
             color="#7B1FA2",
             col={"xs": 6, "sm": 6, "md": 3},
         ),
@@ -115,7 +115,7 @@ def build_stats_view(app) -> ft.Control:
                         color=rod_color,
                         width=8,
                         border_radius=3,
-                        tooltip=f"روز {i+1}: {score} امتیاز",
+                        tooltip=to_persian_digits(f"روز {i+1}: {score} امتیاز"),
                     )
                 ],
             )
@@ -130,7 +130,7 @@ def build_stats_view(app) -> ft.Control:
             labels=[
                 fch.ChartAxisLabel(
                     value=j,
-                    label=ft.Text(str(j + 1), size=8),
+                    label=ft.Text(to_persian_digits(str(j + 1)), size=8),
                 )
                 for j in range(0, c.total_days, max(1, c.total_days // 8))
             ],
@@ -232,9 +232,12 @@ def build_stats_view(app) -> ft.Control:
             ft.Container(
                 content=ft.Row([
                     ft.Container(
-                        content=ft.Text(str(i), size=11,
-                                        color=ft.Colors.WHITE,
-                                        weight=ft.FontWeight.BOLD),
+                        content=ft.Text(
+                            to_persian_digits(str(i)),
+                            size=11,
+                            color=ft.Colors.WHITE,
+                            weight=ft.FontWeight.BOLD
+                            ),
                         width=32, height=32,
                         bgcolor=color,
                         border_radius=16,
@@ -243,13 +246,17 @@ def build_stats_view(app) -> ft.Control:
                     ft.Column([
                         ft.Text(title, size=12,
                                 weight=ft.FontWeight.W_500),
-                        ft.Text(to_jalali(d), size=10,
-                                color=ft.Colors.GREY_600),
+                        ft.Text(
+                            to_persian_digits(to_jalali(d)),
+                            size=10,
+                            color=ft.Colors.GREY_600
+                            ),
                     ], spacing=0, expand=True),
                     ft.Container(
-                        content=ft.Text(f"{rec.get('score', 0)}+",
-                                        size=12, color=ft.Colors.WHITE,
-                                        weight=ft.FontWeight.BOLD),
+                        content=ft.Text(
+                            to_persian_digits(f"{rec.get('score', 0)}+"),
+                            size=12, color=ft.Colors.WHITE,
+                            weight=ft.FontWeight.BOLD),
                         padding=ft.Padding.symmetric(
                             vertical=4, horizontal=10),
                         bgcolor=color,
@@ -287,9 +294,12 @@ def build_stats_view(app) -> ft.Control:
                         weight=ft.FontWeight.BOLD),
                 ft.Container(expand=True),
                 ft.Container(
-                    content=ft.Text(f"{done_days} روز", size=10,
-                                    color=ft.Colors.WHITE,
-                                    weight=ft.FontWeight.BOLD),
+                    content=ft.Text(
+                        to_persian_digits(f"{done_days} روز"),
+                        size=10,
+                        color=ft.Colors.WHITE,
+                        weight=ft.FontWeight.BOLD
+                        ),
                     padding=ft.Padding.symmetric(vertical=4, horizontal=10),
                     bgcolor=ft.Colors.PRIMARY,
                     border_radius=10,
@@ -347,7 +357,7 @@ def _stat_card(icon, label: str, value: str, subtitle: str,
                 ft.Container(expand=True),
             ]),
             ft.Container(height=4),
-            ft.Text(value, size=22, weight=ft.FontWeight.BOLD,
+            ft.Text(to_persian_digits(value), size=22, weight=ft.FontWeight.BOLD,
                     color=color),
             ft.Text(label, size=12, weight=ft.FontWeight.W_500),
             ft.Text(subtitle, size=10, color=ft.Colors.GREY_600),
@@ -382,14 +392,24 @@ def _level_stat_row(lv: dict, count: int, total: int) -> ft.Container:
                 ft.Text(lv["title"], size=12,
                         weight=ft.FontWeight.W_500,
                         max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
-                ft.Text(f"{lv['score']} امتیاز", size=10,
-                        color=ft.Colors.GREY_600),
+                ft.Text(
+                    to_persian_digits(f"{lv['score']} امتیاز"),
+                    size=10,
+                    color=ft.Colors.GREY_600
+                    ),
             ], spacing=0, expand=True),
             ft.Column([
-                ft.Text(f"{count}", size=14, weight=ft.FontWeight.BOLD,
-                        color=color),
-                ft.Text(f"{int(ratio * 100)}٪", size=9,
-                        color=ft.Colors.GREY_600),
+                ft.Text(
+                    to_persian_digits(f"{count}"),
+                    size=14,
+                    weight=ft.FontWeight.BOLD,
+                    color=color
+                    ),
+                ft.Text(
+                    to_persian_digits(f"{int(ratio * 100)}٪"),
+                    size=9,
+                    color=ft.Colors.GREY_600
+                    ),
             ], spacing=0,
                 horizontal_alignment=ft.CrossAxisAlignment.END),
         ], spacing=10,
@@ -424,8 +444,11 @@ def _build_history_card(c) -> ft.Container | None:
                     ),
                     ft.Column([
                         ft.Row([
-                            ft.Text(f"دوره {h['cycle']}", size=12,
-                                    weight=ft.FontWeight.BOLD),
+                            ft.Text(
+                                to_persian_digits(f"دوره {h['cycle']}"),
+                                size=12,
+                                weight=ft.FontWeight.BOLD
+                                ),
                             ft.Container(
                                 content=ft.Text(status_text, size=10,
                                                 color=ft.Colors.WHITE,
@@ -437,11 +460,14 @@ def _build_history_card(c) -> ft.Container | None:
                             ),
                         ], spacing=8),
                         ft.Text(
-                            f"{to_jalali(date.fromisoformat(h['start_date']))} "
-                            f"← {to_jalali(date.fromisoformat(h['end_date']))}",
+                            to_persian_digits(f"{to_jalali(date.fromisoformat(h['start_date']))} "),
+                            to_persian_digits(f"← {to_jalali(date.fromisoformat(h['end_date']))}"),
                             size=10, color=ft.Colors.GREY_600,
                         ),
-                        ft.Text(f"{h['days_completed']} روز موفق", size=10),
+                        ft.Text(
+                            to_persian_digits(f"{h['days_completed']} روز موفق"),
+                            size=10
+                            ),
                     ], spacing=2, expand=True),
                 ], spacing=10,
                     vertical_alignment=ft.CrossAxisAlignment.CENTER),
@@ -459,9 +485,11 @@ def _build_history_card(c) -> ft.Container | None:
                         weight=ft.FontWeight.BOLD),
                 ft.Container(expand=True),
                 ft.Container(
-                    content=ft.Text(f"{len(c.history)} دوره", size=10,
-                                    color=ft.Colors.WHITE,
-                                    weight=ft.FontWeight.BOLD),
+                    content=ft.Text(
+                        to_persian_digits(f"{len(c.history)} دوره"),
+                        size=10,
+                        color=ft.Colors.WHITE,
+                        weight=ft.FontWeight.BOLD),
                     padding=ft.Padding.symmetric(vertical=4, horizontal=10),
                     bgcolor=ft.Colors.PRIMARY,
                     border_radius=10,
