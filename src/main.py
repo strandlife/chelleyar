@@ -33,6 +33,7 @@ async def main(page: ft.Page):
     app = ChellehApp(page, db)
     app.connect_resize()
     await app.init()
+    app.setup_auto_lock()
 
     page.on_route_change = app.route_change
     page.on_view_pop = app.view_pop

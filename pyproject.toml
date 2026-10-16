@@ -12,6 +12,7 @@ dependencies = [
     "tinydb>=4.9.0",
     "flet-charts",
     "persiantools",
+    "cryptography",
 ]
 
 

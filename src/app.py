@@ -22,6 +22,7 @@ class ChellehApp(NavigationMixin, RouterMixin, ThemeMixin, ChellehLogicMixin):
     selected_day: str | None
     editing_chelleh: Chelleh | None
     theme_mode: str
+    
 
     def __init__(self, page: ft.Page, db: Database):
         self.page = page
@@ -31,6 +32,7 @@ class ChellehApp(NavigationMixin, RouterMixin, ThemeMixin, ChellehLogicMixin):
         self.editing_chelleh = None
         self.current_chelleh: Chelleh | None = None
         self.theme_mode = "light"
+        self.unlocked: dict[str, str] = {}
 
     # ----------------------------------------------------------------
     # چرخه حیات و داده
@@ -52,3 +54,34 @@ class ChellehApp(NavigationMixin, RouterMixin, ThemeMixin, ChellehLogicMixin):
     def snack(self, msg: str):
         """نمایش پیام موقت"""
         self.page.show_dialog(ft.SnackBar(ft.Text(msg)))
+
+    def is_unlocked(self, ch: Chelleh) -> bool:
+        """آیا این چله در حال حاضر باز است؟"""
+        if not ch.encrypted:
+            return True
+        return ch.id in self.unlocked
+
+    def lock_chelleh(self, ch: Chelleh):
+        """قفل کردن چله در حافظه (بدون تغییر داده‌ها)"""
+        from crypto import encrypt_chelleh
+        password = self.unlocked.get(ch.id)
+        if password and not ch.encrypted:
+            encrypt_chelleh(ch, password)
+            self.db.save_chelleh(ch)
+        self.unlocked.pop(ch.id, None)
+
+    def lock_all(self):
+        """قفل کردن همه چله‌های باز — هنگام خروج یا رویداد امنیتی"""
+        for ch in self.chellehs:
+            if ch.id in self.unlocked:
+                self.lock_chelleh(ch)
+        self.unlocked.clear()
+
+    def setup_auto_lock(self):
+        """قفل کردن همه چله‌های باز هنگام بستن پنجره"""
+        async def on_close(e):
+            self.lock_all()
+
+        # در Flet 1.0: page.window.on_close
+        if self.page.window is not None:
+            self.page.window.on_close = on_close

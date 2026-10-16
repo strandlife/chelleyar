@@ -2,6 +2,8 @@ import flet as ft
 import json
 import base64
 from utils import to_persian_digits
+from views.lock_dialogs import show_unlock_dialog
+
 
 
 # ==================================================================
@@ -10,92 +12,191 @@ from utils import to_persian_digits
 
 SHARE_PREFIX = "CHELEHYAR1:"
 
-
-def _card_actions(app, c) -> list[ft.Control]:
+def _card_actions(app, c, is_locked: bool) -> list[ft.Control]:
     """اکشن‌های انتهای کارت — همان الگوی appbar:
-    دسکتاپ: هر چهار عمل به‌صورت آیکن مستقیم (بدون منو)
-    موبایل: فقط سه‌نقطه؛ بقیه داخل منوی آن
+    دسکتاپ: آیکن‌های مستقیم
+    موبایل: منوی سه‌نقطه
     """
+    page = app.page
+
+    # ---------- هندلرهای مشترک ----------
+    def go_edit(e):
+        if is_locked:
+            app.snack("ابتدا چله را باز کنید")
+            return
+        app.open_edit(c)
+
+    def go_stats(e):
+        if is_locked:
+            app.snack("ابتدا چله را باز کنید")
+            return
+        app.open_stats(c)
+
+    def go_share(e):
+        if is_locked:
+            app.snack("چله‌های قفل‌شده قابل اشتراک‌گذاری نیستند")
+            return
+        _show_share_dialog(app, c)
+
+    def go_unlock(e):
+        _show_unlock_dialog(app, c)
+
+    def go_lock(e):
+        """قفل کردن چله — نیاز به تعیین رمز"""
+        from views.lock_dialogs import show_lock_dialog
+        show_lock_dialog(app, c)
+
+    def go_remove_lock(e):
+        """برداشتن قفل — چله در حافظه باید باز باشد"""
+        from views.lock_dialogs import show_remove_lock_dialog
+        show_remove_lock_dialog(app, c)
+
+    def go_delete(e):
+        _show_delete_dialog(app, c)
+
+    # ---------- دسکتاپ: آیکن‌های مستقیم ----------
     if app.is_desktop():
-        return [
+        if is_locked:
+            # چله قفل است: باز کردن + حذف
+            return [
+                ft.IconButton(
+                    ft.Icons.LOCK_OPEN,
+                    icon_size=20,
+                    icon_color=ft.Colors.PRIMARY,
+                    tooltip="باز کردن چله",
+                    on_click=go_unlock,
+                ),
+                ft.IconButton(
+                    ft.Icons.DELETE_OUTLINE,
+                    icon_size=20,
+                    icon_color=ft.Colors.RED_400,
+                    tooltip="حذف چله",
+                    on_click=go_delete,
+                ),
+            ]
+
+        # چله باز است: چهار دکمه اصلی + بر اساس حالت قفل، آیکون قفل
+        actions = [
             ft.IconButton(
                 ft.Icons.EDIT_OUTLINED,
                 icon_size=20,
                 icon_color=ft.Colors.PRIMARY,
                 tooltip="ویرایش چله",
-                on_click=lambda e, ch=c: app.open_edit(ch),
+                on_click=go_edit,
             ),
             ft.IconButton(
                 ft.Icons.INSIGHTS_OUTLINED,
                 icon_size=20,
                 icon_color=ft.Colors.ORANGE,
                 tooltip="آمار و گزارش",
-                on_click=lambda e, ch=c: app.open_stats(ch),
+                on_click=go_stats,
             ),
             ft.IconButton(
                 ft.Icons.SHARE_OUTLINED,
                 icon_size=18,
                 icon_color=ft.Colors.BLUE_400,
                 tooltip="اشتراک‌گذاری چله",
-                on_click=lambda e, ch=c: _show_share_dialog(app, ch),
+                on_click=go_share,
             ),
+        ]
+
+        # آیکون قفل: اگر چله رمزنگاری‌شده و باز است → «برداشتن قفل»
+        #            اگر رمزنگاری‌نشده است → «قفل کردن با رمز»
+        if c.encrypted:
+            actions.append(
+                ft.IconButton(
+                    ft.Icons.LOCK_OUTLINE,
+                    icon_size=20,
+                    icon_color=ft.Colors.INDIGO,
+                    tooltip="برداشتن قفل",
+                    on_click=go_remove_lock,
+                )
+            )
+        else:
+            actions.append(
+                ft.IconButton(
+                    ft.Icons.LOCK,
+                    icon_size=20,
+                    icon_color=ft.Colors.INDIGO,
+                    tooltip="قفل کردن با رمز",
+                    on_click=go_lock,
+                )
+            )
+
+        actions.append(
             ft.IconButton(
                 ft.Icons.DELETE_OUTLINE,
                 icon_size=20,
                 icon_color=ft.Colors.RED_400,
                 tooltip="حذف چله",
-                on_click=lambda e, ch=c: _show_delete_dialog(app, ch),
-            ),
-        ]
+                on_click=go_delete,
+            )
+        )
+        return actions
 
-    # ---------- منوی سه‌نقطه (موبایل) ----------
+    # ---------- موبایل: منوی سه‌نقطه ----------
     def open_menu(e):
-        page = app.page
-
-        def go_edit(ev):
-            page.pop_dialog()
-            app.open_edit(c)
-
-        def go_stats(ev):
-            page.pop_dialog()
-            app.open_stats(c)
-
-        def go_delete(ev):
-            page.pop_dialog()
-            _show_delete_dialog(app, c)
-
-        def go_share(ev):
-            page.pop_dialog()
-            _show_share_dialog(app, c)
-
-        dialog = ft.AlertDialog(
-            content=ft.Column([
+        if is_locked:
+            items = [
                 ft.ListTile(
-                    leading=ft.Icon(ft.Icons.EDIT_OUTLINED,
+                    leading=ft.Icon(ft.Icons.LOCK_OPEN,
                                     color=ft.Colors.PRIMARY),
-                    title=ft.Text("ویرایش چله"),
-                    on_click=go_edit,
-                ),
-                ft.ListTile(
-                    leading=ft.Icon(ft.Icons.INSIGHTS_OUTLINED,
-                                    color=ft.Colors.ORANGE),
-                    title=ft.Text("آمار و گزارش"),
-                    on_click=go_stats,
-                ),
-                ft.ListTile(
-                    leading=ft.Icon(ft.Icons.SHARE_OUTLINED,
-                                    color=ft.Colors.BLUE_400),
-                    title=ft.Text("اشتراک‌گذاری چله"),
-                    on_click=go_share,
+                    title=ft.Text("باز کردن چله"),
+                    on_click=lambda ev: (page.pop_dialog(), go_unlock(ev)),
                 ),
                 ft.Divider(height=1),
                 ft.ListTile(
                     leading=ft.Icon(ft.Icons.DELETE_OUTLINE,
                                     color=ft.Colors.RED_400),
                     title=ft.Text("حذف چله", color=ft.Colors.RED_400),
-                    on_click=go_delete,
+                    on_click=lambda ev: (page.pop_dialog(), go_delete(ev)),
                 ),
-            ], spacing=0, tight=True, width=260),
+            ]
+        else:
+            items = [
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.EDIT_OUTLINED,
+                                    color=ft.Colors.PRIMARY),
+                    title=ft.Text("ویرایش چله"),
+                    on_click=lambda ev: (page.pop_dialog(), go_edit(ev)),
+                ),
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.INSIGHTS_OUTLINED,
+                                    color=ft.Colors.ORANGE),
+                    title=ft.Text("آمار و گزارش"),
+                    on_click=lambda ev: (page.pop_dialog(), go_stats(ev)),
+                ),
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.SHARE_OUTLINED,
+                                    color=ft.Colors.BLUE_400),
+                    title=ft.Text("اشتراک‌گذاری چله"),
+                    on_click=lambda ev: (page.pop_dialog(), go_share(ev)),
+                ),
+                # گزینه‌ی قفل بر اساس وضعیت فعلی
+                ft.ListTile(
+                    leading=ft.Icon(
+                        ft.Icons.LOCK_OUTLINE if c.encrypted else ft.Icons.LOCK,
+                        color=ft.Colors.INDIGO,
+                    ),
+                    title=ft.Text(
+                        "برداشتن قفل" if c.encrypted else "قفل کردن با رمز"
+                    ),
+                    on_click=lambda ev: (
+                        page.pop_dialog(),
+                        (go_remove_lock if c.encrypted else go_lock)(ev),
+                    ),
+                ),
+                ft.Divider(height=1),
+                ft.ListTile(
+                    leading=ft.Icon(ft.Icons.DELETE_OUTLINE,
+                                    color=ft.Colors.RED_400),
+                    title=ft.Text("حذف چله", color=ft.Colors.RED_400),
+                    on_click=lambda ev: (page.pop_dialog(), go_delete(ev)),
+                ),
+            ]
+
+        dialog = ft.AlertDialog(
+            content=ft.Column(items, spacing=0, tight=True, width=260),
             content_padding=ft.Padding.symmetric(vertical=8, horizontal=0),
         )
         page.show_dialog(dialog)
@@ -384,23 +485,41 @@ def build_chelleh_card(app, c) -> ft.Control:
     ratio = prog / c.total_days if c.total_days else 0
     accent = "#2E7D32" if is_done else ft.Colors.PRIMARY
 
-    # ---------- دایره روز ----------
-    if is_done:
-        circle_content = ft.Icon(ft.Icons.CHECK, color=ft.Colors.WHITE, size=22)
-        circle_bg = "#2E7D32"
+    is_locked = c.encrypted and not app.is_unlocked(c)
+
+    # ---------- اطلاعات نمایشی بر اساس حالت قفل ----------
+    if is_locked:
+        title = f"چله قفل‌شده #{c.id[:6]}"
+        subtitle = "برای مشاهده، رمز عبور را وارد کنید"
+        circle_content = ft.Icon(ft.Icons.LOCK, color=ft.Colors.WHITE, size=22)
+        circle_bg = ft.Colors.GREY_600
     else:
-        circle_content = ft.Text(
-            to_persian_digits(str(day)),
-            size=16,
-            weight=ft.FontWeight.BOLD,
-            color=ft.Colors.WHITE,
-        )
-        circle_bg = ft.Colors.PRIMARY
+        title = c.display_name or c.name or "بدون نام"
+        subtitle = c.task or ""
+        if is_done:
+            circle_content = ft.Icon(ft.Icons.CHECK,
+                                     color=ft.Colors.WHITE, size=22)
+            circle_bg = "#2E7D32"
+        else:
+            circle_content = ft.Text(
+                to_persian_digits(str(day)),
+                size=16,
+                weight=ft.FontWeight.BOLD,
+                color=ft.Colors.WHITE,
+            )
+            circle_bg = ft.Colors.PRIMARY
+
+    # ---------- کلیک روی کارت ----------
+    def on_card_click(e):
+        if is_locked:
+            show_unlock_dialog(app, c)
+        else:
+            app.open_status(c)
 
     # ---------- عنوان + برچسب تکمیل ----------
     title_row_children = [
         ft.Text(
-            c.display_name,
+            title,
             size=15,
             weight=ft.FontWeight.BOLD,
             max_lines=1,
@@ -408,7 +527,7 @@ def build_chelleh_card(app, c) -> ft.Control:
             expand=True,
         ),
     ]
-    if is_done:
+    if is_done and not is_locked:
         title_row_children.append(
             ft.Container(
                 content=ft.Text(
@@ -422,6 +541,20 @@ def build_chelleh_card(app, c) -> ft.Control:
                 border_radius=8,
             )
         )
+    if is_locked:
+        title_row_children.append(
+            ft.Container(
+                content=ft.Text(
+                    "قفل",
+                    size=9,
+                    color=ft.Colors.WHITE,
+                    weight=ft.FontWeight.BOLD,
+                ),
+                padding=ft.Padding.symmetric(vertical=3, horizontal=8),
+                bgcolor=ft.Colors.GREY_700,
+                border_radius=8,
+            )
+        )
 
     title_row = ft.Row(
         title_row_children,
@@ -429,23 +562,28 @@ def build_chelleh_card(app, c) -> ft.Control:
         vertical_alignment=ft.CrossAxisAlignment.CENTER,
     )
 
-    # ---------- ردیف سطح اجرا ----------
-    bar_row = ft.Row(
-        [
-            build_level_bar(c, height=10, expand=True),
-            ft.Text(
-                to_persian_digits(f"{int(ratio * 100)}٪"),
-                size=10,
-                color=accent,
-                weight=ft.FontWeight.BOLD,
-            ),
-        ],
-        spacing=8,
-        vertical_alignment=ft.CrossAxisAlignment.CENTER,
-    )
+    # ---------- نوار فرایند ----------
+    # برای چله قفل‌شده نوار پیشرفت را هم مخفی می‌کنیم
+    # چون بر اساس سطوح رمزنگاری‌شده ساخته می‌شود
+    if is_locked:
+        bar_row = ft.Container(height=6)
+    else:
+        bar_row = ft.Row(
+            [
+                build_level_bar(c, height=10, expand=True),
+                ft.Text(
+                    to_persian_digits(f"{int(ratio * 100)}٪"),
+                    size=10,
+                    color=accent,
+                    weight=ft.FontWeight.BOLD,
+                ),
+            ],
+            spacing=8,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        )
 
-    # ---------- اکشن‌های کارت (ریسپانسیو) ----------
-    actions = _card_actions(app, c)
+    # ---------- اکشن‌های کارت ----------
+    actions = _card_actions(app, c, is_locked)
 
     # ---------- کارت اصلی ----------
     card = ft.Container(
@@ -461,20 +599,19 @@ def build_chelleh_card(app, c) -> ft.Control:
                 ft.Row([
                     ft.Column([
                         title_row,
-                        ft.Text(c.task, size=11, color=ft.Colors.GREY_600,
-                            max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
-                        ],
-                        expand=True,
-                    ),
+                        ft.Text(
+                            subtitle,
+                            size=11,
+                            color=ft.Colors.GREY_600,
+                            max_lines=1,
+                            overflow=ft.TextOverflow.ELLIPSIS,
+                        ),
+                    ], expand=True),
                     *actions,
                 ]),
                 bar_row,
             ], spacing=3, expand=True),
-            
-            
-        ], spacing=10,
-            #vertical_alignment=ft.CrossAxisAlignment.CENTER
-            ),
+        ], spacing=10),
         padding=ft.Padding.symmetric(vertical=12, horizontal=12),
         border_radius=16,
         bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
@@ -484,11 +621,10 @@ def build_chelleh_card(app, c) -> ft.Control:
             offset=ft.Offset(0, 2),
         ),
         ink=True,
-        on_click=lambda e, ch=c: app.open_status(ch),
+        on_click=on_card_click,
     )
 
     return card
-
 
 
 

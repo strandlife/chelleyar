@@ -18,6 +18,9 @@ def _clean_for_model(model_cls, item: dict) -> dict:
     cleaned.setdefault("daily_logs", {})
     cleaned.setdefault("history", [])
     cleaned.setdefault("status", "active")
+    cleaned.setdefault("encrypted", False)
+    cleaned.setdefault("ciphertext", "")
+    cleaned.setdefault("salt", "")
     return cleaned
 
 

@@ -17,6 +17,11 @@ class Chelleh:
     history: list = field(default_factory=list)
     status: str = "active"  # "active" | "completed"
 
+    # ---- فیلدهای رمزنگاری ----
+    encrypted: bool = False
+    ciphertext: str = ""
+    salt: str = ""
+
     def get_today_log(self, d: date | None = None) -> dict:
         key = str(self.current_day)
         if key not in self.daily_logs:
