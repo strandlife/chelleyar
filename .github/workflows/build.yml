@@ -66,13 +66,13 @@ jobs:
 
       - name: Build v7a APK
         run: |
-          flet build apk --arch armeabi-v7a
+          flet build apk --arch armeabi-v7a --verbose
           mkdir -p apks
           find build -name "app-release.apk" -exec cp {} apks/chelleyar-arm64.apk \;
 
       - name: Build v8a APK
         run: |
-          flet build apk --arch arm64-v8a
+          flet build apk --arch arm64-v8a --verbose
           find build -name "app-release.apk" -exec cp {} apks/chelleyar-armv7.apk \;
 
       - name: Upload APK artifact
