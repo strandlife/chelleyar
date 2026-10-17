@@ -6,7 +6,8 @@ from utils import COLOR_OPTIONS, to_persian_digits
 
 def build_edit_view(app) -> ft.Control:
     page = app.page
-    c = app.editing_cheleh
+    c = app.editing_chelleh
+    is_desktop = app.is_desktop()
 
     # ---------- بررسی وجود چله ----------
     if not c:
@@ -26,6 +27,7 @@ def build_edit_view(app) -> ft.Control:
         border_radius=12,
         filled=True,
         prefix_icon=ft.Icons.LABEL_OUTLINE,
+        expand=True,
     )
     display_field = ft.TextField(
         label="نام نمایشی",
@@ -34,6 +36,7 @@ def build_edit_view(app) -> ft.Control:
         border_radius=12,
         filled=True,
         prefix_icon=ft.Icons.VISIBILITY_OUTLINED,
+        expand=True,
     )
     task_field = ft.TextField(
         label="وظیفه‌ای که باید مراقبت شود",
@@ -43,6 +46,7 @@ def build_edit_view(app) -> ft.Control:
         border_radius=12,
         filled=True,
         prefix_icon=ft.Icons.TASK_ALT_OUTLINED,
+        expand=True,
     )
 
     levels_column = ft.Column(spacing=10)
@@ -57,12 +61,10 @@ def build_edit_view(app) -> ft.Control:
             border_radius=10,
             filled=True,
             dense=True,
-            expand=True,
         )
         score_field = ft.TextField(
             label="امتیاز",
             value=score,
-            width=95,
             border_radius=10,
             filled=True,
             dense=True,
@@ -71,7 +73,6 @@ def build_edit_view(app) -> ft.Control:
         color_dd = ft.Dropdown(
             label="رنگ",
             value=color,
-            width=150,
             border_radius=10,
             filled=True,
             dense=True,
@@ -92,22 +93,35 @@ def build_edit_view(app) -> ft.Control:
 
         color_dd.on_change = on_color_change
 
-        # اگر سطح شکست است، دکمه حذف غیرفعال شود
+        # سطح شکست قابل حذف نیست
         is_failure = (score == "0")
         remove_btn = ft.IconButton(
             ft.Icons.CLOSE,
-            icon_color=ft.Colors.GREY_300 if is_failure else ft.Colors.RED_400,
+            icon_color=(ft.Colors.GREY_300 if is_failure
+                        else ft.Colors.RED_400),
             icon_size=20,
-            tooltip="سطح شکست قابل حذف نیست" if is_failure else "حذف سطح",
+            tooltip=("سطح شکست قابل حذف نیست" if is_failure else "حذف سطح"),
             disabled=is_failure,
             on_click=lambda e: _remove_row(levels_column, row_wrap, app),
         )
 
+        # رنگ + preview در یک ردیف افقی
+        color_with_preview = ft.Row(
+            [
+                ft.Container(content=color_dd, expand=True),
+                preview,
+            ],
+            spacing=8,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+
+        # توزیع ستون‌ها:
+        # موبایل: عنوان ۱۲ | امتیاز ۴ + رنگ ۸
+        # دسکتاپ: عنوان ۶ + امتیاز ۲ + رنگ ۴
         row_inner = ft.ResponsiveRow([
             ft.Column([title_field], col={"xs": 12, "sm": 6}),
-            ft.Column([score_field], col={"xs": 6, "sm": 2}),
-            ft.Column([color_dd], col={"xs": 5, "sm": 3}),
-            ft.Column([preview], col={"xs": 1, "sm": 1}),
+            ft.Column([score_field], col={"xs": 4, "sm": 2}),
+            ft.Column([color_with_preview], col={"xs": 8, "sm": 4}),
         ], spacing=8, run_spacing=8)
 
         # نشان سطح شکست
@@ -122,7 +136,8 @@ def build_edit_view(app) -> ft.Control:
                     content=ft.Text("سیستم", size=9,
                                     color=ft.Colors.WHITE,
                                     weight=ft.FontWeight.BOLD),
-                    padding=ft.Padding.symmetric(vertical=2, horizontal=6),
+                    padding=ft.Padding.symmetric(
+                        vertical=2, horizontal=6),
                     bgcolor=ft.Colors.RED_400,
                     border_radius=6,
                 )
@@ -200,7 +215,6 @@ def build_edit_view(app) -> ft.Control:
             app.snack("حداقل دو سطح وظیفه تعریف کنید")
             return
 
-        # تضمین وجود سطح شکست
         if not any(lv["score"] == 0 for lv in levels):
             levels.append({
                 "title": "شکست",
@@ -208,24 +222,22 @@ def build_edit_view(app) -> ft.Control:
                 "color": "#C62828",
             })
 
-        # به‌روزرسانی چله
         c.name = name
         c.display_name = display_field.value.strip() or name
         c.task = task_field.value.strip()
         c.levels = levels
 
-        app.db.save_cheleh(c)
+        app.db.save_chelleh(c)
         app.snack("تغییرات با موفقیت ذخیره شد ✅")
-        app.editing_cheleh = None
+        app.editing_chelleh = None
         await page.push_route("/")
 
-    # ---------- لغو ویرایش ----------
     def cancel(e):
-        app.editing_cheleh = None
+        app.editing_chelleh = None
         app.navigate("/")
 
-    # ---------- UI ----------
-    # بخش اطلاعات پایه
+    # ---------- بخش اطلاعات پایه ----------
+        # ---------- بخش اطلاعات پایه (ریسپانسیو) ----------
     basic_info = elevated_card(
         ft.Column([
             ft.Row([
@@ -235,14 +247,20 @@ def build_edit_view(app) -> ft.Control:
                         weight=ft.FontWeight.BOLD),
             ], spacing=8),
             ft.Container(height=4),
-            name_field,
-            display_field,
+
+            # نام‌ها کنار هم روی دسکتاپ، زیر هم روی موبایل
+            ft.ResponsiveRow([
+                ft.Column([name_field], col={"xs": 12, "md": 6}),
+                ft.Column([display_field], col={"xs": 12, "md": 6}),
+            ], spacing=10, run_spacing=10),
+
+            # وظیفه تمام عرض (چون multiline است)
             task_field,
         ], spacing=10),
         padding=16,
     )
 
-    # بخش سطوح
+    # ---------- بخش سطوح ----------
     levels_section = elevated_card(
         ft.Column([
             ft.Row([
@@ -264,7 +282,8 @@ def build_edit_view(app) -> ft.Control:
                             color=ft.Colors.AMBER_700),
                     ft.Text(
                         "سطح «شکست» سیستمی است و قابل حذف نیست.",
-                        size=11, color=ft.Colors.GREY_600),
+                        size=11, color=ft.Colors.GREY_600,
+                        expand=True),
                 ], spacing=6,
                     vertical_alignment=ft.CrossAxisAlignment.START),
                 padding=ft.Padding.symmetric(vertical=8, horizontal=10),
@@ -276,7 +295,7 @@ def build_edit_view(app) -> ft.Control:
         padding=16,
     )
 
-    # بخش اطلاعات چله (وضعیت فعلی)
+    # ---------- بخش وضعیت فعلی (ریسپانسیو) ----------
     info_section = elevated_card(
         ft.Column([
             ft.Row([
@@ -286,41 +305,77 @@ def build_edit_view(app) -> ft.Control:
                         weight=ft.FontWeight.BOLD),
             ], spacing=8),
             ft.Container(height=4),
-            ft.Row([
-                _info_chip(ft.Icons.REPEAT, "دوره",
-                           str(c.cycle_number), ft.Colors.BLUE),
-                _info_chip(ft.Icons.CALENDAR_TODAY, "روز فعلی",
-                           f"{c.current_day} از {c.total_days}",
-                           ft.Colors.GREEN),
-                _info_chip(ft.Icons.CHECK_CIRCLE_OUTLINE, "موفق",
-                           str(c.progress()), ft.Colors.ORANGE),
-            ], spacing=8, wrap=True, run_spacing=8),
+            # روی موبایل: زیر هم | روی دسکتاپ: کنار هم
+            ft.ResponsiveRow([
+                ft.Column(
+                    [_info_chip(
+                        ft.Icons.REPEAT, "دوره",
+                        to_persian_digits(str(c.cycle_number)),
+                        ft.Colors.BLUE)],
+                    col={"xs": 12, "sm": 4},
+                ),
+                ft.Column(
+                    [_info_chip(
+                        ft.Icons.CALENDAR_TODAY, "روز فعلی",
+                        f"{to_persian_digits(str(c.current_day))} از "
+                        f"{to_persian_digits(str(c.total_days))}",
+                        ft.Colors.GREEN)],
+                    col={"xs": 12, "sm": 4},
+                ),
+                ft.Column(
+                    [_info_chip(
+                        ft.Icons.CHECK_CIRCLE_OUTLINE, "موفق",
+                        to_persian_digits(str(c.progress())),
+                        ft.Colors.ORANGE)],
+                    col={"xs": 12, "sm": 4},
+                ),
+            ], spacing=8, run_spacing=8),
         ], spacing=8),
         padding=16,
     )
 
-    # دکمه‌های پایین
-    actions = ft.Row([
-        ft.TextButton(
-            "انصراف",
-            icon=ft.Icons.CLOSE,
-            on_click=cancel,
-            style=ft.ButtonStyle(color=ft.Colors.GREY_600),
+    # ---------- دکمه‌های پایین (ریسپانسیو) ----------
+    cancel_btn = ft.TextButton(
+        "انصراف",
+        icon=ft.Icons.CLOSE,
+        on_click=cancel,
+        style=ft.ButtonStyle(color=ft.Colors.GREY_600),
+    )
+    submit_btn = ft.Button(
+        "ذخیره تغییرات",
+        icon=ft.Icons.SAVE_OUTLINED,
+        on_click=submit,
+        style=ft.ButtonStyle(
+            bgcolor=ft.Colors.PRIMARY,
+            color=ft.Colors.WHITE,
+            padding=ft.Padding.symmetric(vertical=14, horizontal=28),
+            shape=ft.RoundedRectangleBorder(radius=12),
+            elevation=2,
         ),
-        ft.Container(expand=True),
-        ft.Button(
-            "ذخیره تغییرات",
-            icon=ft.Icons.SAVE_OUTLINED,
-            on_click=submit,
-            style=ft.ButtonStyle(
-                bgcolor=ft.Colors.PRIMARY,
-                color=ft.Colors.WHITE,
-                padding=ft.Padding.symmetric(vertical=14, horizontal=28),
-                shape=ft.RoundedRectangleBorder(radius=12),
-                elevation=2,
+    )
+
+    if is_desktop:
+        actions = ft.Row([
+            cancel_btn,
+            ft.Container(expand=True),
+            submit_btn,
+        ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER)
+    else:
+        # موبایل: هر دکمه تمام عرض
+        actions = ft.Column([
+            ft.Container(
+                content=submit_btn,
+                alignment=ft.Alignment.CENTER,
             ),
-        ),
-    ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER)
+            ft.Row([cancel_btn], alignment=ft.MainAxisAlignment.CENTER),
+        ], spacing=8, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+
+    # ---------- پدینگ ریسپانسیو ----------
+    outer_padding = (
+        ft.Padding.only(left=16, right=16, top=16, bottom=8)
+        if is_desktop
+        else ft.Padding.symmetric(vertical=12, horizontal=12)
+    )
 
     # ---------- ساختار نهایی ----------
     return ft.Column([
@@ -332,14 +387,13 @@ def build_edit_view(app) -> ft.Control:
                 actions,
                 ft.Container(height=24),
             ], spacing=14),
-            padding=ft.Padding.only(left=16, right=16, top=16, bottom=8),
+            padding=outer_padding,
         ),
     ], spacing=0, scroll=ft.ScrollMode.AUTO, expand=True)
 
 
 # ---------- توابع کمکی ----------
 def _remove_row(levels_column: ft.Column, row_wrap: ft.Container, app):
-    # جلوگیری از حذف سطح شکست
     if row_wrap.data.get("is_failure"):
         app.snack("سطح شکست قابل حذف نیست")
         return
@@ -359,7 +413,7 @@ def _info_chip(icon, label: str, value: str, color) -> ft.Container:
                 ft.Text(label, size=9, color=ft.Colors.GREY_600),
                 ft.Text(value, size=12, weight=ft.FontWeight.BOLD,
                         color=color),
-            ], spacing=0),
+            ], spacing=0, expand=True),
         ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER),
         padding=ft.Padding.symmetric(vertical=8, horizontal=12),
         bgcolor=ft.Colors.with_opacity(0.08, color),
