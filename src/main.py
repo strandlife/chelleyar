@@ -2,7 +2,6 @@ import flet as ft
 from app import ChellehApp
 from database import Database
 from theme import app_theme, app_dark_theme
-from flet import StoragePaths
 
 
 
@@ -12,7 +11,8 @@ FONT_BOLD_URL = "https://github.com/rastikerdar/vazirmatn/raw/master/fonts/webfo
 
 
 async def main(page: ft.Page):
-    log_path = await StoragePaths.get_console_log_filename()
+    storage_paths = ft.StoragePaths()
+    log_path = await storage_paths.get_console_log_filename()
     print(f"Console log path: {log_path}")
     page.title = "چله‌یار"
     page.rtl = True
