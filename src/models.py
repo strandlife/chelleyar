@@ -11,6 +11,7 @@ class Chelleh:
     levels: list
     cycle_number: int = 1
     cycle_start_date: str = ""
+    name_hint: str = ""
     total_days: int = 40
     current_day: int = 1
     daily_logs: dict = field(default_factory=dict)

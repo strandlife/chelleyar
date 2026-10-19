@@ -33,7 +33,7 @@ def _derive_key(password: str, salt: bytes) -> bytes:
     return base64.urlsafe_b64encode(kdf.derive(password.encode("utf-8")))
 
 
-def encrypt_chelleh(chelleh, password: str) -> None:
+def encrypt_chelleh(chelleh, password: str, keep_name_hint:bool=True) -> None:
     """محتوای حساس چله را رمزنگاری و در فیلدهای ciphertext/salt می‌گذارد.
 
     پس از این تابع، چله دارای ciphertext و salt است و
@@ -53,6 +53,9 @@ def encrypt_chelleh(chelleh, password: str) -> None:
     chelleh.ciphertext = token.decode("ascii")
     chelleh.salt = base64.urlsafe_b64encode(salt).decode("ascii")
     chelleh.encrypted = True
+
+    full_name = (chelleh.display_name or chelleh.name or "").strip()
+    chelleh.name_hint = full_name if (keep_name_hint and full_name) else ""
 
     # پاک کردن داده‌های حساس از حافظه
     chelleh.name = ""
