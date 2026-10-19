@@ -1,7 +1,8 @@
 import flet as ft
 import json
 import base64
-from utils import to_persian_digits
+from datetime import date
+from utils import to_persian_digits, to_jalali
 from views.lock_dialogs import show_unlock_dialog
 
 
@@ -489,7 +490,7 @@ def build_chelleh_card(app, c) -> ft.Control:
 
     # ---------- اطلاعات نمایشی بر اساس حالت قفل ----------
     if is_locked:
-        title = f"چله قفل‌شده #{c.id[:6]}"
+        title = f" {c.id[:6]}"
         subtitle = "برای مشاهده، رمز عبور را وارد کنید"
         circle_content = ft.Icon(ft.Icons.LOCK, color=ft.Colors.WHITE, size=22)
         circle_bg = ft.Colors.GREY_600
@@ -497,16 +498,32 @@ def build_chelleh_card(app, c) -> ft.Control:
         title = c.display_name or c.name or "بدون نام"
         subtitle = c.task or ""
         if is_done:
-            circle_content = ft.Icon(ft.Icons.CHECK,
-                                     color=ft.Colors.WHITE, size=22)
+            circle_content = ft.Icon(ft.Icons.CHECK,color=ft.Colors.WHITE, size=22)
             circle_bg = "#2E7D32"
         else:
-            circle_content = ft.Text(
-                to_persian_digits(str(day)),
-                size=16,
-                weight=ft.FontWeight.BOLD,
-                color=ft.Colors.WHITE,
-            )
+            try:
+                last_date_day = c.daily_logs.get(str(len(c.daily_logs)))['date']
+            except:
+                last_date_day = c.cycle_start_date
+            date_day = to_jalali(date.fromisoformat(last_date_day)).split('/')
+            date_day = date_day[1] + '/' +date_day[2]
+
+            circle_content = ft.Column(
+                [
+                    ft.Text(
+                        to_persian_digits(str(day)),
+                        size=20,
+                        weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.WHITE,
+                    ),
+                    ft.Text(
+                        to_persian_digits(date_day),
+                        size=10,
+                        color=ft.Colors.WHITE,
+                        )
+                ],
+                spacing=1,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,)
             circle_bg = ft.Colors.PRIMARY
 
     # ---------- کلیک روی کارت ----------
@@ -573,7 +590,7 @@ def build_chelleh_card(app, c) -> ft.Control:
                 build_level_bar(c, height=10, expand=True),
                 ft.Text(
                     to_persian_digits(f"{int(ratio * 100)}٪"),
-                    size=10,
+                    size=18,
                     color=accent,
                     weight=ft.FontWeight.BOLD,
                 ),

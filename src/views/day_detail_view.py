@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 import flet as ft
 
 from utils import to_jalali, to_persian_digits
@@ -7,6 +7,12 @@ from utils import to_jalali, to_persian_digits
 # ==================================================================
 # صفحه اصلی روز
 # ==================================================================
+
+def get_day_date(c, day: int) -> date:
+    """تاریخ واقعی روز n از چله را برمی‌گرداند."""
+    start = date.fromisoformat(c.cycle_start_date)
+    return start + timedelta(days=day - 1)
+
 
 def build_day_detail_view(app) -> ft.Control:
     c = app.current_chelleh
@@ -20,6 +26,7 @@ def build_day_detail_view(app) -> ft.Control:
 
     is_editable = (day == c.current_day) and (c.status == "active")
 
+
     key = str(day)
     if key not in c.daily_logs:
         c.daily_logs[key] = {
@@ -30,7 +37,7 @@ def build_day_detail_view(app) -> ft.Control:
             "result": None,
             "morning_saved": False,
             "evening_saved": False,
-            "date": date.today().isoformat(),
+            "date": get_day_date(c, day).isoformat(),
         }
     log = c.daily_logs[key]
 
@@ -63,7 +70,7 @@ def _build_day_header(c, day, log, is_editable) -> ft.Container:
 
     try:
         start = date.fromisoformat(c.cycle_start_date)
-        day_date = start + __import__("datetime").timedelta(days=day - 1)
+        day_date = start + timedelta(days=day - 1)
         date_str = to_jalali(day_date)
     except Exception:
         date_str = ""
@@ -533,7 +540,7 @@ def _record_success(app, c, log, li, score):
     log["level_index"] = li
     log["score"] = score
     log["result"] = "success"
-    log["date"] = date.today().isoformat()
+    log["date"] = get_day_date(c, c.current_day).isoformat()
 
     if c.is_last_day():
         _show_completion_dialog(app, c)
@@ -557,7 +564,7 @@ def _show_failure_dialog(app, c, log, li):
         log["level_index"] = li
         log["score"] = 0
         log["result"] = "failure"
-        log["date"] = date.today().isoformat()
+        log["date"] = get_day_date(c, c.current_day).isoformat()
 
         app.fail_chelleh(c)
         app.snack("چله شکست خورد و از ابتدا شروع شد")
@@ -607,12 +614,16 @@ def _show_failure_dialog(app, c, log, li):
 def _show_completion_dialog(app, c):
     page = app.page
     action = {"value": None}
+    def get_day_date(day):
+        start = date.fromisoformat(c.cycle_start_date)
+        day_date = start + timedelta(days=day - 1)
+        return day_date
 
     def do_action():
         c.history.append({
             "cycle": c.cycle_number,
             "start_date": c.cycle_start_date,
-            "end_date": date.today().isoformat(),
+            "end_date": get_day_date(c, c.current_day),
             "days_completed": c.total_days,
             "status": "completed",
         })
@@ -620,7 +631,7 @@ def _show_completion_dialog(app, c):
             c.cycle_number += 1
             c.total_days += 40
             c.current_day += 1
-            c.cycle_start_date = date.today().isoformat()
+            c.cycle_start_date = get_day_date(c, c.current_day)
             app.db.save_chelleh(c)
             app.snack(
                 f"چله تمدید شد! از روز {c.current_day} ادامه دهید 🎉")
