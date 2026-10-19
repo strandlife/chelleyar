@@ -12,6 +12,10 @@ MAX_LEVELS = 10
 MIN_LEVELS = 2
 
 
+
+def _new_level_id() -> str:
+    return str(uuid.uuid4())
+
 def build_add_view(app) -> ft.Control:
     page = app.page
 
@@ -41,9 +45,9 @@ def build_add_view(app) -> ft.Control:
 
     # ---------- سطوح (منبع اصلی داده) ----------
     levels: list[dict] = [
-        {"title": "", "score": 1, "color": "#2E7D32"},
-        {"title": "", "score": 2, "color": "#4CAF50"},
-        {"title": "", "score": 3, "color": "#8BC34A"},
+        {"id": _new_level_id(), "title": "", "score": 1, "color": "#2E7D32"},
+        {"id": _new_level_id(), "title": "", "score": 2, "color": "#4CAF50"},
+        {"id": _new_level_id(), "title": "", "score": 3, "color": "#8BC34A"},
     ]
     levels_column = ft.Column(spacing=8)
     levels_counter = ft.Text(size=11, color=ft.Colors.GREY_500)
@@ -131,8 +135,12 @@ def build_add_view(app) -> ft.Control:
                 page.update()
                 return
 
-            data = {"title": t, "score": s,
-                    "color": color_dd.value or "#4CAF50"}
+            data = {
+                "id": initial.get("id") or _new_level_id(),
+                "title": t,
+                "score": s,
+                "color": color_dd.value or "#4CAF50"
+                }
             if is_edit:
                 levels[index] = data
             else:
@@ -287,6 +295,7 @@ def build_add_view(app) -> ft.Control:
         # افزودن خودکار سطح شکست
         if not any(lv["score"] == 0 for lv in levels):
             levels.append({
+                "id": _new_level_id(),
                 "title": "شکست",
                 "score": 0,
                 "color": "#C62828",
