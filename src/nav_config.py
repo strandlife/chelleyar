@@ -13,9 +13,8 @@ NAV_STACKS = {
     "/backup":  ["/", "/backup"],
     "/stats":   ["/", "/status", "/stats"],
     "/day":     ["/", "/status", "/day"],
-    "/catchup": ["/", "/status", "/catchup"],
 }
 
 # مسیرهایی که برای ساخته‌شدن به current_chelleh نیاز دارند
-CHELEH_ROUTES = ("/status", "/stats", "/day", "/catchup")
+CHELEH_ROUTES = ("/status", "/stats", "/day")
 DESKTOP_MIN_WIDTH = 600

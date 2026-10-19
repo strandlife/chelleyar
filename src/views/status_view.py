@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 import flet as ft
 
-from utils import to_jalali, readable_text_color, to_persian_digits, get_unrecorded_days
+from utils import to_jalali, readable_text_color, to_persian_digits
 
 
 # ---------- ابزار تشخیص دسکتاپ ----------
@@ -29,9 +29,6 @@ def build_status_view(app) -> ft.Control:
     summary = _build_summary_card(c, prog, is_done, desktop)
     grid = _build_day_grid(app, c, desktop)
     history = _build_history_section(c, desktop)
-
-    if app.current_chelleh and get_unrecorded_days(app.current_chelleh):
-        app.navigate("/catchup")
 
     # ---------- بخش روزها ----------
     days_section = ft.Column(
@@ -176,21 +173,26 @@ def _build_summary_card(c, prog, is_done, desktop=False) -> ft.Container:
 
 
 # ---------- شبکه روزها ----------
+# ---------- شبکه روزها ----------
 def _build_day_grid(app, c, desktop=False) -> ft.Control:
     cells = []
+    today = date.today()  # ← تاریخ امروز؛ مبنای غیرفعال‌سازی
     start = date.fromisoformat(c.cycle_start_date)
+
     for i in range(1, c.total_days + 1):
-        day_date = to_jalali(start + timedelta(days=i - 1))
-        cells.append(_make_day_cell(app, c, i, day_date, desktop))
+        d = start + timedelta(days=i - 1)   # تاریخ واقعی این روز (میلادی)
+        locked = d > today                  # بعد از امروز → غیرفعال
+        cells.append(_make_day_cell(app, c, i, to_jalali(d), desktop, locked))
+
     return ft.ResponsiveRow(cells, spacing=6, run_spacing=6)
 
 
-def _make_day_cell(app, c, i, day_date, desktop=False) -> ft.Container:
+def _make_day_cell(app, c, i, day_date, desktop=False, locked=False) -> ft.Container:
     rec = c.daily_logs.get(str(i), {})
     result = rec.get("result")
-    is_current = (i == c.current_day) and (c.status == "active")
-    is_future = i > c.current_day
-    is_clickable = not is_future
+
+    is_current = (i == c.current_day) and (c.status == "active") and not locked
+    is_clickable = not locked
 
     # ---------- رنگ و متن ----------
     if result == "success":
@@ -204,14 +206,15 @@ def _make_day_cell(app, c, i, day_date, desktop=False) -> ft.Container:
     elif result == "failure":
         bg, fg = "#C62828", ft.Colors.WHITE
         border = None
+    elif locked:
+        # سررسیدنشده: کم‌رنگ‌ترین حالت
+        bg = ft.Colors.with_opacity(0.05, ft.Colors.GREY)
+        fg = ft.Colors.GREY_400
+        border = None
     elif is_current:
         bg = ft.Colors.with_opacity(0.12, ft.Colors.PRIMARY)
         fg = ft.Colors.PRIMARY
         border = ft.Border.all(2, ft.Colors.PRIMARY)
-    elif is_future:
-        bg = ft.Colors.with_opacity(0.05, ft.Colors.GREY)
-        fg = ft.Colors.GREY_400
-        border = None
     else:
         bg = ft.Colors.with_opacity(0.08, ft.Colors.GREY)
         fg = ft.Colors.GREY_500
@@ -227,6 +230,8 @@ def _make_day_cell(app, c, i, day_date, desktop=False) -> ft.Container:
         cell_children.append(ft.Icon(ft.Icons.CHECK, size=10, color=fg))
     elif result == "failure":
         cell_children.append(ft.Icon(ft.Icons.CLOSE, size=10, color=fg))
+    elif locked:
+        cell_children.append(ft.Icon(ft.Icons.LOCK, size=10, color=fg))
     else:
         cell_children.append(ft.Container(height=10))
 
@@ -250,11 +255,12 @@ def _make_day_cell(app, c, i, day_date, desktop=False) -> ft.Container:
         alignment=ft.Alignment.CENTER,
         ink=is_clickable,
         on_click=on_click if is_clickable else None,
-        # موبایل: ۴ سلول در ردیف | تبلت: ۶ | لپ‌تاپ/دسکتاپ: ۸
+        tooltip="این روز هنوز نرسیده" if locked else None,
+        disabled=locked,
+        # موبایل: ۴ سلول در ردیف | تبلت: ۶ | دسکتاپ: ۸
         col={"xs": 3, "sm": 2, "md": 2, "lg": 1.5, "xl": 1.5},
         animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
     )
-
 
 # ---------- تاریخچه (بخش جدا) ----------
 def _build_history_section(c, desktop=False) -> ft.Control | None:

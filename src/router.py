@@ -10,7 +10,6 @@ from views.status_view import build_status_view
 from views.edit_view import build_edit_view
 from views.stats_view import build_stats_view
 from views.backup_view import build_backup_view
-from views.catchup_view import build_catchup_view
 from views.about_view import build_about_view
 from views.science_view import build_science_view
 
@@ -170,19 +169,6 @@ class RouterMixin:
                 ),
                 scroll=ft.ScrollMode.AUTO,
                 controls=[build_edit_view(self)],
-            )
-
-        if route == "/catchup":
-            return ft.View(
-                route="/catchup",  # ← باگ: قبلاً 'catchup' بدون اسلش بود
-                appbar=make_appbar(
-                    title="روزهای جامانده",
-                    subtitle="",
-                    show_back=True,
-                    on_back=lambda e: self.go_back("/status"),
-                ),
-                scroll=ft.ScrollMode.AUTO,
-                controls=[build_catchup_view(self)],
             )
 
         if route == "/day":
