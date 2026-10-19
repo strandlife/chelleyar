@@ -7,6 +7,7 @@ from views.lock_dialogs import show_unlock_dialog
 
 
 
+
 # ==================================================================
 # اشتراک‌گذاری چله
 # ==================================================================
@@ -66,14 +67,7 @@ def _card_actions(app, c, is_locked: bool) -> list[ft.Control]:
                     icon_color=ft.Colors.PRIMARY,
                     tooltip="باز کردن چله",
                     on_click=go_unlock,
-                ),
-                ft.IconButton(
-                    ft.Icons.DELETE_OUTLINE,
-                    icon_size=20,
-                    icon_color=ft.Colors.RED_400,
-                    tooltip="حذف چله",
-                    on_click=go_delete,
-                ),
+                )
             ]
 
         # چله باز است: چهار دکمه اصلی + بر اساس حالت قفل، آیکون قفل
@@ -144,14 +138,7 @@ def _card_actions(app, c, is_locked: bool) -> list[ft.Control]:
                                     color=ft.Colors.PRIMARY),
                     title=ft.Text("باز کردن چله"),
                     on_click=lambda ev: (page.pop_dialog(), go_unlock(ev)),
-                ),
-                ft.Divider(height=1),
-                ft.ListTile(
-                    leading=ft.Icon(ft.Icons.DELETE_OUTLINE,
-                                    color=ft.Colors.RED_400),
-                    title=ft.Text("حذف چله", color=ft.Colors.RED_400),
-                    on_click=lambda ev: (page.pop_dialog(), go_delete(ev)),
-                ),
+                )
             ]
         else:
             items = [
@@ -490,7 +477,9 @@ def build_chelleh_card(app, c) -> ft.Control:
 
     # ---------- اطلاعات نمایشی بر اساس حالت قفل ----------
     if is_locked:
-        title = f" {c.id[:6]}"
+        hint = (getattr(c, "name_hint", "") or "").strip()
+        title = hint if hint else f" {c.id[:6]}"
+        
         subtitle = "برای مشاهده، رمز عبور را وارد کنید"
         circle_content = ft.Icon(ft.Icons.LOCK, color=ft.Colors.WHITE, size=22)
         circle_bg = ft.Colors.GREY_600
