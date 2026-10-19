@@ -105,12 +105,12 @@ def _build_summary_card(c, prog, is_done, desktop=False) -> ft.Container:
                         ft.Column(
                             [
                                 ft.Text(
-                                    c.display_name,
+                                    c.name,
                                     size=18 if desktop else 16,
                                     weight=ft.FontWeight.BOLD,
                                 ),
                                 ft.Text(
-                                    c.name,
+                                    c.task,
                                     size=12 if desktop else 11,
                                     color=ft.Colors.GREY_600,
                                 ),

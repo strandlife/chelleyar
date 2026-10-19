@@ -605,13 +605,6 @@ def build_chelleh_card(app, c) -> ft.Control:
                 ft.Row([
                     ft.Column([
                         title_row,
-                        ft.Text(
-                            subtitle,
-                            size=11,
-                            color=ft.Colors.GREY_600,
-                            max_lines=1,
-                            overflow=ft.TextOverflow.ELLIPSIS,
-                        ),
                     ], expand=True),
                     *actions,
                 ]),
