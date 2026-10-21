@@ -8,6 +8,8 @@ from utils import to_jalali, to_persian_digits
 MAX_LEVELS = 10
 MIN_LEVELS = 2
 
+
+
 def _new_level_id() -> str:
     return str(uuid.uuid4())
 
@@ -49,15 +51,46 @@ def build_edit_view(app) -> ft.Control:
     )
 
     # ---------- سطوح (کپی کاری — انصراف برگرداندنی است) ----------
-    levels: list[dict] = [dict(lv) for lv in (c.levels or [])]
     levels_column = ft.Column(spacing=8)
     levels_counter = ft.Text(size=11, color=ft.Colors.GREY_500)
 
+    removed_level_ids: list[str] = []   # سطوح حذف‌شده در این جلسه ویرایش
+
+        # ---------- سطوح (کپی کاری — انصراف برگرداندنی است) ----------
+    def _new_level(title: str, score: int, color: str) -> dict:
+        return {"id": _new_level_id(), "title": title, "score": score, "color": color}
+
+    levels: list[dict] = []
+    for lv in (c.levels or []):
+        d = dict(lv)
+        d.setdefault("id", _new_level_id())   # داده‌های قدیمیِ بدون id
+        levels.append(d)
+
+    levels_column = ft.Column(spacing=8)
+    levels_counter = ft.Text(size=11, color=ft.Colors.GREY_500)
+    removed_level_ids: list[str] = []     # سطوح حذف‌شده در این جلسه ویرایش
+
+    def _find_index(level_id: str) -> int | None:
+        for i, lv in enumerate(levels):
+            if lv.get("id") == level_id:
+                return i
+        return None
+
+    def remove_level(level_id: str):
+        if len(levels) <= MIN_LEVELS:
+            app.snack("حداقل دو سطح لازم است")
+            return
+        removed_level_ids.append(level_id)
+        idx = _find_index(level_id)
+        if idx is not None:
+            levels.pop(idx)
+        refresh_levels()
+    
     # ---------- دیالوگ افزودن / ویرایش سطح ----------
-    def open_level_dialog(e=None, index: int | None = None):
-        is_edit = index is not None
-        initial = dict(levels[index]) if is_edit else {
-            "title": "", "score": "", "color": "#4CAF50"}
+    def open_level_dialog(e=None, level_id: str | None = None):
+        idx = _find_index(level_id) if level_id else None
+        is_edit = idx is not None
+        initial = dict(levels[idx]) if is_edit else _new_level("", "", "#4CAF50")
 
         title_field = ft.TextField(
             label="عنوان سطح", value=initial["title"],
@@ -115,15 +148,14 @@ def build_edit_view(app) -> ft.Control:
             if s < 0:
                 score_field.error_text = "امتیاز نمی‌تواند منفی باشد"
                 page.update(); return
-            if any(lv["score"] == s
-                   for i_lv, lv in enumerate(levels) if i_lv != index):
+            if any(lv["score"] == s and lv["id"] != initial["id"] for lv in levels):
                 score_field.error_text = "این امتیاز قبلاً استفاده شده است"
                 page.update(); return
 
-            data = {"title": t, "score": s,
+            data = {"id": initial["id"], "title": t, "score": s,
                     "color": color_dd.value or "#4CAF50"}
             if is_edit:
-                levels[index] = data
+                levels[idx] = data
             else:
                 levels.append(data)
             refresh_levels()
@@ -156,7 +188,7 @@ def build_edit_view(app) -> ft.Control:
         ))
 
     # ---------- نمایش خلاصه سطوح ----------
-    def make_level_tile(index: int, lv: dict) -> ft.Container:
+    def make_level_tile(lv: dict) -> ft.Container:
         is_system = int(lv.get("score", 0)) == 0
         sys_tip = "سطح شکست سیستمی است و قابل تغییر نیست"
         score_chip = ft.Container(
@@ -180,12 +212,12 @@ def build_edit_view(app) -> ft.Control:
                               tooltip=sys_tip if is_system else "ویرایش سطح",
                               icon_color=ft.Colors.GREY_700,
                               disabled=is_system,
-                              on_click=lambda e, i=index: open_level_dialog(index=i)),
+                              on_click=lambda e, lid=lv['id']: open_level_dialog(level_id=lid)),
                 ft.IconButton(ft.Icons.DELETE_OUTLINE, icon_size=18,
                               tooltip=sys_tip if is_system else "حذف سطح",
                               icon_color=ft.Colors.RED_400,
                               disabled=is_system,
-                              on_click=lambda e, i=index: remove_level(i)),
+                              on_click=lambda e, lid=lv['id']: remove_level(level_id=lid)),
             ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER),
             padding=ft.Padding.symmetric(horizontal=12, vertical=6),
             bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
@@ -195,20 +227,13 @@ def build_edit_view(app) -> ft.Control:
 
     def refresh_levels():
         levels_column.controls.clear()
-        for i, lv in enumerate(levels):
-            levels_column.controls.append(make_level_tile(i, lv))
+        for lv in levels:
+            levels_column.controls.append(make_level_tile(lv))
         levels_counter.value = (
             f"{to_persian_digits(str(len(levels)))} از "
             f"{to_persian_digits(str(MAX_LEVELS))} سطح"
         )
         page.update()
-
-    def remove_level(index: int):
-        if len(levels) <= MIN_LEVELS:
-            app.snack("حداقل دو سطح لازم است")
-            return
-        levels.pop(index)
-        refresh_levels()
 
     def add_level_click(e=None):
         if len(levels) >= MAX_LEVELS:
@@ -325,8 +350,11 @@ def build_edit_view(app) -> ft.Control:
                     ),
                     ft.Column([
                         ft.Text("تاریخ شروع چله", size=10, color=ft.Colors.GREY_600),
-                        ft.Text(to_jalali(date.fromisoformat(c.cycle_start_date)),
-                                size=13, weight=ft.FontWeight.BOLD),
+                        ft.Text(
+                            to_persian_digits(to_jalali(date.fromisoformat(c.cycle_start_date))),
+                            size=13,
+                            weight=ft.FontWeight.BOLD
+                            ),
                     ], spacing=0, expand=True),
                     ft.Text("غیرقابل تغییر", size=10, color=ft.Colors.GREY_500),
                 ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER),
@@ -352,14 +380,25 @@ def build_edit_view(app) -> ft.Control:
         if len(levels) < MIN_LEVELS:
             app.snack("حداقل دو سطح وظیفه تعریف کنید"); return
         if not any(lv["score"] == 0 for lv in levels):
-            levels.append({"id": _new_level_id(),"title": "شکست", "score": 0, "color": "#C62828"})
+            levels.append(_new_level("شکست", 0, "#C62828"))
 
         c.name = name
         c.display_name = display_field.value.strip() or name
         c.task = task_field.value.strip()
         c.levels = levels
+
+        # روزهایی که به سطوح حذف‌شده اشاره می‌کردند → بدون سطح
+        affected = 0
+        for log in (c.daily_logs or {}).values():
+            if log.get("level_id") in removed_level_ids:
+                log["level_id"] = None
+                log.pop("level_index", None)   # تا به سطح شیفت‌خورده نچسبد
+                affected += 1
+
         app.db.save_chelleh(c)
-        app.snack("تغییرات با موفقیت ذخیره شد ✅")
+        app.snack(
+            f"ذخیره شد؛ {to_persian_digits(str(affected))} روز بدون سطح شد"
+            if affected else "تغییرات با موفقیت ذخیره شد ✅")
         app.editing_chelleh = None
         await page.push_route("/")
 

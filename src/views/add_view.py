@@ -12,9 +12,13 @@ MAX_LEVELS = 10
 MIN_LEVELS = 2
 
 
-
 def _new_level_id() -> str:
     return str(uuid.uuid4())
+
+
+def _new_level(title: str, score: int, color: str) -> dict:
+    return {"id": _new_level_id(), "title": title, "score": score, "color": color}
+
 
 def build_add_view(app) -> ft.Control:
     page = app.page
@@ -45,17 +49,24 @@ def build_add_view(app) -> ft.Control:
 
     # ---------- سطوح (منبع اصلی داده) ----------
     levels: list[dict] = [
-        {"id": _new_level_id(), "title": "", "score": 1, "color": "#2E7D32"},
-        {"id": _new_level_id(), "title": "", "score": 2, "color": "#4CAF50"},
-        {"id": _new_level_id(), "title": "", "score": 3, "color": "#8BC34A"},
+        _new_level("", 1, "#2E7D32"),
+        _new_level("", 2, "#4CAF50"),
+        _new_level("", 3, "#8BC34A"),
     ]
     levels_column = ft.Column(spacing=8)
     levels_counter = ft.Text(size=11, color=ft.Colors.GREY_500)
 
+    def _find_index(level_id: str) -> int | None:
+        for i, lv in enumerate(levels):
+            if lv.get("id") == level_id:
+                return i
+        return None
+
     # ---------- دیالوگ افزودن / ویرایش سطح ----------
-    def open_level_dialog(e=None, index: int | None = None):
-        is_edit = index is not None
-        initial = dict(levels[index]) if is_edit else {
+    def open_level_dialog(e=None, level_id: str | None = None):
+        idx = _find_index(level_id) if level_id else None
+        is_edit = idx is not None
+        initial = dict(levels[idx]) if is_edit else {
             "title": "", "score": "", "color": "#4CAF50"}
 
         title_field = ft.TextField(
@@ -128,9 +139,9 @@ def build_add_view(app) -> ft.Control:
                 page.update()
                 return
 
-            # جلوگیری از امتیاز تکراری
-            if any(lv["score"] == s
-                   for i_lv, lv in enumerate(levels) if i_lv != index):
+            # جلوگیری از امتیاز تکراری (سطحِ در حال ویرایش مستثنا می‌شود)
+            if any(lv["score"] == s and lv["id"] != initial.get("id")
+                   for lv in levels):
                 score_field.error_text = "این امتیاز قبلاً استفاده شده است"
                 page.update()
                 return
@@ -139,10 +150,10 @@ def build_add_view(app) -> ft.Control:
                 "id": initial.get("id") or _new_level_id(),
                 "title": t,
                 "score": s,
-                "color": color_dd.value or "#4CAF50"
-                }
+                "color": color_dd.value or "#4CAF50",
+            }
             if is_edit:
-                levels[index] = data
+                levels[idx] = data
             else:
                 levels.append(data)
             refresh_levels()
@@ -188,7 +199,7 @@ def build_add_view(app) -> ft.Control:
         page.show_dialog(dlg)
 
     # ---------- نمایش خلاصه سطوح ----------
-    def make_level_tile(index: int, lv: dict) -> ft.Container:
+    def make_level_tile(lv: dict) -> ft.Container:
         score_chip = ft.Container(
             content=ft.Text(f"امتیاز {lv['score']}", size=11,
                             weight=ft.FontWeight.BOLD, color=lv["color"]),
@@ -216,13 +227,13 @@ def build_add_view(app) -> ft.Control:
                     ft.Icons.EDIT_OUTLINED, icon_size=18,
                     tooltip="ویرایش سطح",
                     icon_color=ft.Colors.GREY_700,
-                    on_click=lambda e, i=index: open_level_dialog(index=i),
+                    on_click=lambda e, lid=lv["id"]: open_level_dialog(level_id=lid),
                 ),
                 ft.IconButton(
                     ft.Icons.DELETE_OUTLINE, icon_size=18,
                     tooltip="حذف سطح",
                     icon_color=ft.Colors.RED_400,
-                    on_click=lambda e, i=index: remove_level(i),
+                    on_click=lambda e, lid=lv["id"]: remove_level(lid),
                 ),
             ], spacing=6,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER),
@@ -235,16 +246,19 @@ def build_add_view(app) -> ft.Control:
 
     def refresh_levels():
         levels_column.controls.clear()
-        for i, lv in enumerate(levels):
-            levels_column.controls.append(make_level_tile(i, lv))
+        for lv in levels:
+            levels_column.controls.append(make_level_tile(lv))
         levels_counter.value = f"{len(levels)} از {MAX_LEVELS} سطح"
         page.update()
 
-    def remove_level(index: int):
+    def remove_level(level_id: str):
+        idx = _find_index(level_id)
+        if idx is None:
+            return
         if len(levels) <= MIN_LEVELS:
             app.snack("حداقل دو سطح لازم است")
             return
-        levels.pop(index)
+        levels.pop(idx)
         refresh_levels()
 
     def add_level_click(e=None):
@@ -294,12 +308,7 @@ def build_add_view(app) -> ft.Control:
 
         # افزودن خودکار سطح شکست
         if not any(lv["score"] == 0 for lv in levels):
-            levels.append({
-                "id": _new_level_id(),
-                "title": "شکست",
-                "score": 0,
-                "color": "#C62828",
-            })
+            levels.append(_new_level("شکست", 0, "#C62828"))
 
         start_date_iso = selected_start_date["value"].isoformat()
 

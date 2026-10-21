@@ -3,7 +3,7 @@ import flet as ft
 import flet_charts as fch
 
 from theme import elevated_card
-from utils import to_jalali, to_persian_digits
+from utils import to_jalali, to_persian_digits, find_level_by_id, resolve_log_level
 
 
 def build_stats_view(app) -> ft.Control:
@@ -35,15 +35,14 @@ def build_stats_view(app) -> ft.Control:
 
         if result == "success":
             score = rec.get("score", 0)
-            total_score += score
-            done_days += 1
-            li = rec.get("level_index", 0)
-            success_level_counts[li] = success_level_counts.get(li, 0) + 1
-            if score > best_day_score:
-                best_day_score = score
-                best_day_num = i
+            lv = resolve_log_level(c, rec)
+            rod_color = lv["color"] if lv else "#4CAF50"
         elif result == "failure":
-            failed_days += 1
+            score = 0
+            rod_color = "#C62828"
+        else:
+            score = 0
+            rod_color = ft.Colors.with_opacity(0.15, ft.Colors.GREY)
 
     avg = round(total_score / done_days, 1) if done_days else 0
     success_rate = round(done_days / c.total_days * 100) if c.total_days else 0
@@ -195,11 +194,9 @@ def build_stats_view(app) -> ft.Control:
 
     # ---------- تفکیک بر اساس سطوح ----------
     level_stats = []
-    for i, lv in enumerate(c.levels):
-        count = success_level_counts.get(i, 0)
-        level_stats.append(
-            _level_stat_row(lv, count, done_days)
-        )
+    for lv in c.levels:
+        count = success_level_counts.get(lv.get("id"), 0)
+        level_stats.append(_level_stat_row(lv, count, done_days))
 
     levels_card = elevated_card(
         ft.Column([
@@ -221,9 +218,9 @@ def build_stats_view(app) -> ft.Control:
         rec = c.daily_logs.get(str(i), {})
         if rec.get("result") != "success":
             continue
-        li = rec.get("level_index", 0)
-        title = c.levels[li]["title"] if 0 <= li < len(c.levels) else "-"
-        color = c.levels[li]["color"] if 0 <= li < len(c.levels) else "#4CAF50"
+        lv = resolve_log_level(c, rec)
+        title = lv["title"] if lv else "-"
+        color = lv["color"] if lv else "#4CAF50"
 
         # تاریخ تقریبی (روز i ام بعد از شروع دوره)
         d = start + timedelta(days=i - 1)
@@ -460,8 +457,11 @@ def _build_history_card(c) -> ft.Container | None:
                             ),
                         ], spacing=8),
                         ft.Text(
-                            to_persian_digits(f"{to_jalali(date.fromisoformat(h['start_date']))} "),
-                            to_persian_digits(f"← {to_jalali(date.fromisoformat(h['end_date']))}"),
+                            to_persian_digits(
+                                f"{to_jalali(date.fromisoformat(h['start_date']))} "
+                                f"←"
+                                f"{to_jalali(date.fromisoformat(h['end_date']))}"
+                            ),
                             size=10, color=ft.Colors.GREY_600,
                         ),
                         ft.Text(

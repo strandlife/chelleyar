@@ -1,4 +1,5 @@
 import flet as ft
+import uuid
 
 from models import Chelleh
 from database import Database
@@ -41,10 +42,36 @@ class ChellehApp(NavigationMixin, RouterMixin, ThemeMixin, ChellehLogicMixin):
     async def init(self):
         """بارگذاری داده‌ها از SharedPreferences"""
         self.chellehs = self.db.load_chellehs()
+        self.ensure_level_ids() 
         saved = self.db.get_setting("theme_mode", "light")
         if saved in ("light", "dark", "system"):
             self.theme_mode = saved
         self.apply_theme()
+
+    def ensure_level_ids(self, ch: Chelleh | None = None):
+        targets = [ch] if ch is not None else self.chellehs
+        for c in targets:
+            if c.encrypted:
+                continue
+            changed = False
+            levels = c.levels or []
+
+            # ۱) سطح‌های بدون id
+            for lv in levels:
+                if not lv.get("id"):
+                    lv["id"] = str(uuid.uuid4())
+                    changed = True
+
+            # ۲) لاگ‌های قدیمیِ فقط-ایندکسی → تبدیل به id
+            for log in (c.daily_logs or {}).values():
+                if "level_id" not in log:
+                    idx = log.get("level_index")
+                    if isinstance(idx, int) and 0 <= idx < len(levels):
+                        log["level_id"] = levels[idx].get("id")
+                        changed = True
+
+            if changed:
+                self.db.save_chelleh(c)
 
     async def save(self):
         """ذخیره‌سازی داده‌ها"""

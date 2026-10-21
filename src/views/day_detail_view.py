@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 import flet as ft
+import uuid
 
 from utils import to_jalali, to_persian_digits
 
@@ -7,6 +8,28 @@ from utils import to_jalali, to_persian_digits
 # ==================================================================
 # صفحه اصلی روز
 # ==================================================================
+
+
+def _find_level_by_id(c, level_id) -> dict | None:
+    for lv in (c.levels or []):
+        if lv.get("id") == level_id:
+            return lv
+    return None
+
+
+def _resolve_log_level(c, log) -> dict | None:
+    """سطح ثبت‌شده‌ی یک لاگ: اول level_id، بعد level_index (داده‌های قدیمی)."""
+    lid = log.get("level_id")
+    if lid:
+        lv = _find_level_by_id(c, lid)
+        if lv is not None:
+            return lv
+    idx = log.get("level_index")
+    if isinstance(idx, int) and 0 <= idx < len(c.levels or []):
+        return c.levels[idx]
+    return None
+
+
 
 def get_day_date(c, day: int) -> date:
     """تاریخ واقعی روز n از چله را برمی‌گرداند."""
@@ -20,6 +43,10 @@ def build_day_detail_view(app) -> ft.Control:
     if not c or not app.selected_day:
         return _error_view(app, "روز انتخاب نشده")
 
+    # چله‌های ساخته‌شده با نسخه‌های قدیمی، سطح‌هایشان id ندارد
+    for lv in (c.levels or []):
+        lv.setdefault("id", str(uuid.uuid4()))
+
     day = app.selected_day
     if day < 1 or day > c.total_days:
         return _error_view(app, "شماره روز نامعتبر است")
@@ -32,7 +59,7 @@ def build_day_detail_view(app) -> ft.Control:
         c.daily_logs[key] = {
             "morning_note": "",
             "evening_note": "",
-            "level_index": 0,
+            "level_id": None,        # ← به‌جای "level_index": 0
             "score": 0,
             "result": None,
             "morning_saved": False,
@@ -248,23 +275,27 @@ def _editable_view(app, c, day, log, day_header) -> ft.Control:
     )
 
     # ---------- انتخاب سطح ----------
-    current_level = log.get("level_index", 0)
-    if not (0 <= current_level < len(c.levels)):
-        current_level = 0
+    current_id = log.get("level_id")
+    if current_id not in {lv["id"] for lv in c.levels}:
+        # فالبک: لاگ قدیمی (فقط level_index) یا سطح حذف‌شده → اولین سطح
+        li = log.get("level_index")
+        current_id = (c.levels[li]["id"]
+                      if isinstance(li, int) and 0 <= li < len(c.levels)
+                      else c.levels[0]["id"])
 
     level_dd = ft.Dropdown(
         label="سطح وظیفه امروز",
-        value=str(current_level),
+        value=current_id,
         border_radius=12,
         filled=True,
         expand=True,
         options=[
             ft.DropdownOption(
-                key=str(i),
+                key=lv["id"],          # ← کلید = id، نه ایندکس
                 text=f"{lv['title']} "
                      f"({to_persian_digits(str(lv['score']))} امتیاز)",
             )
-            for i, lv in enumerate(c.levels)
+            for lv in c.levels
         ],
     )
 
@@ -338,12 +369,8 @@ def _editable_view(app, c, day, log, day_header) -> ft.Control:
 
 def _read_only_view(app, c, day, log, day_header) -> ft.Control:
     result = log.get("result")
-
-    level_info = None
-    if result == "success":
-        li = log.get("level_index", 0)
-        if 0 <= li < len(c.levels):
-            level_info = c.levels[li]
+    level_info = _resolve_log_level(c, log) if result == "success" else None
+    needs_level = result == "success" and level_info is None
 
     # ---------- بخش جزئیات ----------
     detail_children = [
@@ -371,6 +398,24 @@ def _read_only_view(app, c, day, log, day_header) -> ft.Control:
                 level_info["color"],
             )
         )
+    elif needs_level:
+        detail_children.append(
+            _read_row(ft.Icons.HELP_OUTLINE, "سطح",
+                      "این روز موفق ثبت شده اما سطح اصلی‌اش حذف شده است",
+                      ft.Colors.AMBER_700)
+        )
+        if needs_level:
+            detail_children.append(
+                ft.Row([
+                    ft.Button(
+                        "تعیین سطح این روز",
+                        icon=ft.Icons.RULE,
+                        on_click=lambda e: _show_reassign_dialog(app, c, day, log),
+                        style=ft.ButtonStyle(
+                            bgcolor=ft.Colors.AMBER_700, color=ft.Colors.WHITE),
+                    ),
+                ], alignment=ft.MainAxisAlignment.CENTER),
+            )
     else:
         detail_children.append(
             _read_row(ft.Icons.REMOVE_CIRCLE_OUTLINE, "وضعیت",
@@ -522,22 +567,28 @@ def _submit_day(app, c, log, level_dd, evening_note, morning_note):
     log["morning_note"] = morning_note.value or ""
     log["evening_note"] = evening_note.value or ""
 
-    li = int(level_dd.value or 0)
-    if not (0 <= li < len(c.levels)):
+    selected = _find_level_by_id(c, level_dd.value)
+    if selected is None:
         app.snack("سطح معتبر انتخاب کنید")
         return
 
-    selected = c.levels[li]
     score = selected["score"]
 
     if score == 0:
-        _show_failure_dialog(app, c, log, li)
+        _show_failure_dialog(app, c, log, selected)   # ← قبلاً li پاس می‌شد (باگ)
     else:
-        _record_success(app, c, log, li, score)
+        _record_success(app, c, log, selected, score)
 
+def _record_success(app, c, log, lv, score):
+    log["level_id"] = lv["id"]
 
-def _record_success(app, c, log, li, score):
-    log["level_index"] = li
+    # موقتاً برای سازگاری با فایل‌های هنوز مهاجرت‌نشده (آمار/وضعیت) —
+    # بعد از مهاجرت کامل، این بلوک را حذف کنید
+    li = next((i for i, x in enumerate(c.levels or [])
+               if x.get("id") == lv["id"]), None)
+    if li is not None:
+        log["level_index"] = li
+
     log["score"] = score
     log["result"] = "success"
     log["date"] = get_day_date(c, c.current_day).isoformat()
@@ -557,11 +608,18 @@ def _record_success(app, c, log, li, score):
 # دیالوگ‌ها
 # ==================================================================
 
-def _show_failure_dialog(app, c, log, li):
+def _show_failure_dialog(app, c, log, lv):
     page = app.page
 
     def do_failure():
-        log["level_index"] = li
+        log["level_id"] = lv["id"]
+
+        # موقتاً برای سازگاری — بعداً حذف شود
+        li = next((i for i, x in enumerate(c.levels or [])
+                   if x.get("id") == lv["id"]), None)
+        if li is not None:
+            log["level_index"] = li
+
         log["score"] = 0
         log["result"] = "failure"
         log["date"] = get_day_date(c, c.current_day).isoformat()
@@ -694,3 +752,75 @@ def _error_view(app, msg):
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
         alignment=ft.Alignment.CENTER, padding=40,
     )
+
+def _show_reassign_dialog(app, c, day, log):
+    """تعیین سطح برای روزی که سطحِ ثبت‌شده‌اش حذف شده است."""
+    page = app.page
+    action = {"level_id": None}
+
+    dd = ft.Dropdown(
+        label="این روز با کدام سطح ثبت شده بود؟",
+        border_radius=12,
+        filled=True,
+        options=[
+            ft.DropdownOption(
+                key=lv["id"],
+                text=f"{lv['title']} "
+                     f"({to_persian_digits(str(lv['score']))} امتیاز)",
+            )
+            for lv in c.levels if int(lv.get("score", 0)) > 0
+        ],
+    )
+
+    def save(e):
+        if not dd.value:
+            dd.error_text = "یک سطح انتخاب کنید"   # درون‌خطی، بدون snack
+            page.update()
+            return
+        action["level_id"] = dd.value
+        page.pop_dialog()                          # اول بسته شود
+
+    def on_dismiss(e):
+        lid = action.get("level_id")
+        if not lid:
+            return                                 # انصراف
+        try:
+            lv = _find_level_by_id(c, lid)
+            if lv is None:
+                app.snack("سطح یافت نشد")
+                return
+            log["level_id"] = lv["id"]
+            log["score"] = lv["score"]
+            log.pop("level_index", None)
+            app.db.save_chelleh(c)
+        except Exception as ex:
+            app.snack(f"خطا در ذخیره: {ex}")       # خطای مخفی را نمایان می‌کند
+            return
+        app.snack("سطح این روز تعیین شد ✅")        # حالا دیالوگی باز نیست
+        app.refresh()
+
+    page.show_dialog(ft.AlertDialog(
+        modal=True,
+        title=ft.Row([
+            ft.Icon(ft.Icons.RULE, size=20, color=ft.Colors.PRIMARY),
+            ft.Text("تعیین سطح روز", size=16, weight=ft.FontWeight.BOLD),
+        ], spacing=8),
+        content=ft.Container(
+            width=300,
+            content=ft.Column([
+                ft.Text(
+                    "سطح اصلی این روز حذف شده است. سطح درست را انتخاب کنید "
+                    "تا آمار و نوار پیشرفت دوباره کامل شوند.",
+                    size=11, color=ft.Colors.GREY_600),
+                dd,
+            ], tight=True, spacing=10),
+        ),
+        actions=[
+            ft.TextButton("انصراف", on_click=lambda e: page.pop_dialog()),
+            ft.Button("ذخیره", icon=ft.Icons.CHECK, on_click=save,
+                      style=ft.ButtonStyle(bgcolor=ft.Colors.PRIMARY,
+                                           color=ft.Colors.WHITE)),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+        on_dismiss=on_dismiss,
+    ))

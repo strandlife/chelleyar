@@ -14,6 +14,40 @@ from views.lock_dialogs import show_unlock_dialog
 
 SHARE_PREFIX = "CHELEHYAR1:"
 
+# ==================================================================
+# پیدا کردن سطح با شناسه (id) — با فالبک به ایندکس برای داده‌های قدیمی
+# ==================================================================
+
+def _find_level_by_id(c, level_id) -> dict | None:
+    for lv in (c.levels or []):
+        if lv.get("id") == level_id:
+            return lv
+    return None
+
+
+def failure_level(self) -> dict | None:
+    for lv in (self.levels or []):
+        if int(lv.get("score", 0)) == 0:
+            return lv
+    return None
+
+
+def _resolve_log_level(c, log) -> dict | None:
+    """سطح ثبت‌شده‌ی یک لاگ را پیدا می‌کند.
+
+    اولویت: level_id (نظام جدید) → level_index (لاگ‌های قدیمی).
+    """
+    lid = log.get("level_id")
+    if lid:
+        lv = _find_level_by_id(c, lid)
+        if lv is not None:
+            return lv
+    idx = log.get("level_index")
+    if isinstance(idx, int) and 0 <= idx < len(c.levels or []):
+        return c.levels[idx]
+    return None
+
+
 def _card_actions(app, c, is_locked: bool) -> list[ft.Control]:
     """اکشن‌های انتهای کارت — همان الگوی appbar:
     دسکتاپ: آیکن‌های مستقیم
@@ -326,26 +360,22 @@ def _get_day_state(c, day: int):
 
     # روزِ ثبت‌شده با نتیجه مشخص
     if log and log.get("result"):
-        idx = log.get("level_index")
+        lv = _resolve_log_level(c, log)
         if log["result"] == "success":
-            if isinstance(idx, int) and 0 <= idx < len(c.levels or []):
-                lv = c.levels[idx]
+            if lv is not None:
                 return (lv.get("color", "#4CAF50"),
                         f"روز {day}: {lv.get('title') or 'بدون عنوان'} — موفق ✅")
             return "#2E7D32", f"روز {day}: موفق ✅"
         # شکست
-        if not (isinstance(idx, int) and 0 <= idx < len(c.levels or [])):
-            idx = c.failure_level_index()
-        title = "بدون عنوان"
-        if isinstance(idx, int) and 0 <= idx < len(c.levels or []):
-            title = c.levels[idx].get("title") or "بدون عنوان"
+        if lv is None:
+            lv = _failure_level(c)
+        title = (lv or {}).get("title") or "بدون عنوان"
         return ft.Colors.RED_400, f"روز {day}: {title} — شکست ❌"
 
     # صبح/شب ثبت شده ولی نتیجه هنوز مشخص نیست
     if log and (log.get("morning_saved") or log.get("evening_saved")):
-        idx = log.get("level_index")
-        if isinstance(idx, int) and 0 <= idx < len(c.levels or []):
-            lv = c.levels[idx]
+        lv = _resolve_log_level(c, log)
+        if lv is not None:
             return (ft.Colors.with_opacity(0.5, lv.get("color", "#4CAF50")),
                     f"روز {day}: {lv.get('title')} — در انتظار نتیجه ⏳")
         return ft.Colors.AMBER_400, f"روز {day}: در انتظار نتیجه ⏳"
@@ -441,22 +471,17 @@ def get_level_info(c) -> dict:
     if not has_content:
         return {"mode": "empty"}
 
-    # سطح از level_index (ایندکس واقعی انتخاب کاربر)
-    level = None
-    idx = log.get("level_index")
-    if isinstance(idx, int) and 0 <= idx < len(c.levels or []):
-        level = c.levels[idx]
+    # سطح با level_id (فالبک: level_index داده‌های قدیمی)
+    level = _resolve_log_level(c, log)
 
     result = log.get("result")
     if result == "success":
         mode = "success"
     elif result:  # هر مقدار دیگر (مثل "failure")
         mode = "failure"
-        # اگر level_index معتبر نبود، سطح شکست را از خود مدل بگیر
+        # اگر level_id معتبر نبود، سطح شکست را از خود مدل بگیر
         if level is None:
-            fi = c.failure_level_index()
-            if 0 <= fi < len(c.levels or []):
-                level = c.levels[fi]
+            level = _failure_level(c)
     else:
         mode = "pending"
 

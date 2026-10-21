@@ -64,3 +64,25 @@ def get_unrecorded_days(c, today: date | None = None) -> list[int]:
         i for i in range(1, current)          # برای حذف «امروز»: range(1, current)
         if not c.daily_logs.get(str(i), {}).get("result")
     ]
+
+def find_level_by_id(chelleh, level_id):
+    """سطح را با شناسه در لیست سطوح چله پیدا می‌کند."""
+    for lv in (chelleh.levels or []):
+        if lv.get("id") == level_id:
+            return lv
+    return None
+
+
+def resolve_log_level(chelleh, log):
+    """سطح ثبت‌شده‌ی یک لاگ.
+
+    اگر کلید level_id در لاگ باشد، همان ملاک است — حتی اگر دیگر پیدا
+    نشود (سطح حذف شده) و نتیجه None باشد (یعنی: بدون سطح).
+    فالبک به level_index فقط برای لاگ‌های قدیمیِ فاقد این کلید است.
+    """
+    if "level_id" in log:
+        return find_level_by_id(chelleh, log["level_id"])
+    idx = log.get("level_index")
+    if isinstance(idx, int) and 0 <= idx < len(chelleh.levels or []):
+        return chelleh.levels[idx]
+    return None
