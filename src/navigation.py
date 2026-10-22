@@ -51,6 +51,11 @@ class NavigationMixin:
         self.editing_chelleh = ch
         self.navigate("/edit")
 
+    def open_settings(self, ch):
+        """رفتن به صفحه ویرایش چله"""
+        self.editing_chelleh = ch
+        self.navigate("/settings")
+
     def open_stats(self, ch):
         """رفتن به صفحه آمار برای یک چله"""
         self.current_chelleh = ch

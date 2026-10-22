@@ -13,6 +13,7 @@ NAV_STACKS = {
     "/backup":  ["/", "/backup"],
     "/stats":   ["/", "/status", "/stats"],
     "/day":     ["/", "/status", "/day"],
+    "/settings":["/", "/settings"],
 }
 
 # مسیرهایی که برای ساخته‌شدن به current_chelleh نیاز دارند

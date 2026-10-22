@@ -12,6 +12,7 @@ from views.stats_view import build_stats_view
 from views.backup_view import build_backup_view
 from views.about_view import build_about_view
 from views.science_view import build_science_view
+from views.settings_view import build_settings_view
 
 
 # آستانه‌ی موبایل/دسکتاپ بر حسب پیکسل منطقی
@@ -73,8 +74,10 @@ class RouterMixin:
         pinned: list[ft.Control],
         collapsible: list[ft.IconButton],
     ) -> list[ft.Control]:
-        """دسکتاپ: همه به‌صورت آیکن.
-        موبایل: pinned ثابت می‌ماند و بقیه در منوی «بیشتر» جمع می‌شوند."""
+        """
+        دسکتاپ: همه به‌صورت آیکن.
+        موبایل: pinned ثابت می‌ماند و بقیه در منوی «بیشتر» جمع می‌شوند.
+        """
         if self._is_desktop() or not collapsible:
             return pinned + collapsible
         menu_btn = ft.PopupMenuButton(
@@ -156,6 +159,19 @@ class RouterMixin:
                 scroll=ft.ScrollMode.AUTO,
                 controls=[build_backup_view(self)],
             )
+
+        if route == "/settings":
+                    return ft.View(
+                        route="/settings",
+                        appbar=make_appbar(
+                            title="ساماندهی",
+                            subtitle="ساماندهی برنامه",
+                            show_back=True,
+                            on_back=lambda e: self.go_back("/"),
+                        ),
+                        scroll=ft.ScrollMode.AUTO,
+                        controls=[build_settings_view(self)],
+                    )
 
         if route == "/edit":
             return ft.View(
@@ -251,6 +267,11 @@ class RouterMixin:
                 tooltip="پشتوانه علمی",
                 on_click=lambda e: self.navigate("/science"),
             ),
+            ft.IconButton(
+                icon=ft.Icons.SETTINGS_OUTLINED,
+                tooltip="تنظیمات",
+                on_click=lambda e: self.navigate("/settings")
+                ),
             ft.IconButton(
                 ft.Icons.BACKUP_OUTLINED,
                 tooltip="پشتیبان‌گیری",
