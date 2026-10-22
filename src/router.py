@@ -118,6 +118,39 @@ class RouterMixin:
         page.update()
 
     def _make_view(self, route: str) -> ft.View:
+        """ساخت ویو + پس‌زمینهٔ تصویری تمام‌صفحه.
+
+        اسکرول از View به Column داخلی منتقل می‌شود تا Containerِ تصویر
+        محدودیت viewport بگیرد و expand کار کند (داخل ناحیهٔ اسکرول،
+        expand نادیده گرفته می‌شود و Container جمع می‌شود).
+        """
+        view = self._build_view(route)
+
+        if view.controls:
+            # ۱) اسکرول View را بردار و نگه دار
+            scroll = view.scroll
+            view.scroll = None
+
+            # ۲) محتوای View را استخراج کن
+            content = view.controls[0] if len(view.controls) == 1 \
+                else ft.Column(view.controls)
+
+            # ۳) اسکرول داخل، زیر تصویر
+            view.controls = [
+                ft.Container(
+                    expand=True,
+                    image=self.bg_image(),      # None → حالت‌های رنگی مثل قبل
+                    content=ft.Column(
+                        [content],
+                        scroll=scroll or ft.ScrollMode.AUTO,
+                        expand=True,
+                        spacing=0,
+                    ),
+                )
+            ]
+        return view
+
+    def _build_view(self, route: str) -> ft.View:
         """ساخت یک ویو بر اساس مسیر آن."""
         ch = self.current_chelleh
         subtitle = ch.display_name if ch else ""

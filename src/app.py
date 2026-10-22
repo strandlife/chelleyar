@@ -23,7 +23,6 @@ class ChellehApp(NavigationMixin, RouterMixin, ThemeMixin, ChellehLogicMixin):
     selected_day: str | None
     editing_chelleh: Chelleh | None
     theme_mode: str
-    
 
     def __init__(self, page: ft.Page, db: Database):
         self.page = page
@@ -34,6 +33,13 @@ class ChellehApp(NavigationMixin, RouterMixin, ThemeMixin, ChellehLogicMixin):
         self.current_chelleh: Chelleh | None = None
         self.theme_mode = "light"
         self.unlocked: dict[str, str] = {}
+        ThemeMixin.setup_bg_picker(self)
+        self.page.fonts = {
+            "Vazirmatn": "fonts/Vazirmatn-Regular.ttf",
+            "Sahel":     "fonts/Sahel-Regular.ttf",
+            "Shabnam":   "fonts/Shabnam-Regular.ttf",
+            "Estedad":   "fonts/Estedad-Regular.ttf",
+        }
 
     # ----------------------------------------------------------------
     # چرخه حیات و داده
@@ -108,7 +114,5 @@ class ChellehApp(NavigationMixin, RouterMixin, ThemeMixin, ChellehLogicMixin):
         """قفل کردن همه چله‌های باز هنگام بستن پنجره"""
         async def on_close(e):
             self.lock_all()
-
-        # در Flet 1.0: page.window.on_close
         if self.page.window is not None:
             self.page.window.on_close = on_close
