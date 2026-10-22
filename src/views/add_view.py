@@ -7,6 +7,7 @@ import flet as ft
 from models import Chelleh
 from theme import elevated_card
 from utils import COLOR_OPTIONS, to_jalali
+from ready_chellehs import build_ready_section
 
 MAX_LEVELS = 10
 MIN_LEVELS = 2
@@ -251,6 +252,19 @@ def build_add_view(app) -> ft.Control:
         levels_counter.value = f"{len(levels)} از {MAX_LEVELS} سطح"
         page.update()
 
+    # ---------- چله‌های آماده ----------
+    def apply_template(tpl: dict):
+        name_field.value = tpl["name"]
+        display_field.value = tpl.get("display_name") or tpl["name"]
+        task_field.value = tpl.get("task", "")
+        levels.clear()
+        for lv in tpl["levels"]:
+            levels.append(_new_level(lv["title"], lv["score"], lv["color"]))
+        refresh_levels()
+        app.snack(f"چله آماده «{tpl['name']}» بارگذاری شد ✅")
+
+    ready_section = build_ready_section(app, apply_template)
+
     def remove_level(level_id: str):
         idx = _find_index(level_id)
         if idx is None:
@@ -447,6 +461,7 @@ def build_add_view(app) -> ft.Control:
     return ft.Column([
         ft.Container(
             content=ft.Column([
+                ready_section,
                 basic_info,
                 levels_section,
                 date_section,
