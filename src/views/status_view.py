@@ -1,7 +1,20 @@
 from datetime import date, timedelta
 import flet as ft
+import jdatetime
+from farscal import format_jdate
 
 from utils import to_jalali, readable_text_color, to_persian_digits
+
+
+def _to_jd(gd: date) -> jdatetime.date:
+    """میلادی → شمسی (jdatetime.date)"""
+    return jdatetime.date.fromgregorian(date=gd)
+
+
+def _as_gdate(v) -> date:
+    """تحمل هر دو نوع: str ISO یا date (رکوردهای قدیمی تاریخچه)"""
+    return v if isinstance(v, date) else date.fromisoformat(v)
+
 
 
 # ---------- ابزار تشخیص دسکتاپ ----------
@@ -176,13 +189,17 @@ def _build_summary_card(c, prog, is_done, desktop=False) -> ft.Container:
 # ---------- شبکه روزها ----------
 def _build_day_grid(app, c, desktop=False) -> ft.Control:
     cells = []
-    today = date.today()  # ← تاریخ امروز؛ مبنای غیرفعال‌سازی
+    today = date.today()
     start = date.fromisoformat(c.cycle_start_date)
 
     for i in range(1, c.total_days + 1):
-        d = start + timedelta(days=i - 1)   # تاریخ واقعی این روز (میلادی)
-        locked = d > today                  # بعد از امروز → غیرفعال
-        cells.append(_make_day_cell(app, c, i, to_jalali(d), desktop, locked))
+        d = start + timedelta(days=i - 1)
+        locked = d > today
+        cells.append(_make_day_cell(
+            app, c, i,
+            format_jdate(_to_jd(d), "d MMMM"),   # «۳ آبان»
+            desktop, locked,
+        ))
 
     return ft.ResponsiveRow(cells, spacing=6, run_spacing=6)
 
@@ -223,7 +240,7 @@ def _make_day_cell(app, c, i, day_date, desktop=False, locked=False) -> ft.Conta
     # ---------- محتوای سلول ----------
     cell_children = [
         ft.Text(to_persian_digits(str(i)), size=13, weight=ft.FontWeight.BOLD, color=fg),
-        ft.Text(to_persian_digits(day_date), size=10),
+        ft.Text(day_date, size=10),
     ]
 
     if result == "success":
@@ -296,6 +313,10 @@ def _build_history_section(c, desktop=False) -> ft.Control | None:
                                             size=13 if desktop else 12,
                                             weight=ft.FontWeight.BOLD,
                                         ),
+                                        ft.Text(
+                                            f"شروع: {format_jdate(_to_jd(date.fromisoformat(c.cycle_start_date)), 'd MMMM yyyy')}",
+                                            size=11, color=ft.Colors.GREY_600,
+                                        ),
                                         ft.Container(
                                             content=ft.Text(
                                                 status_text,
@@ -313,8 +334,8 @@ def _build_history_section(c, desktop=False) -> ft.Control | None:
                                     spacing=8,
                                 ),
                                 ft.Text(
-                                    f"{to_jalali(date.fromisoformat(h['start_date']))} ← "
-                                    f"{to_jalali(date.fromisoformat(h['end_date']))}",
+                                    f"از {format_jdate(_to_jd(_as_gdate(h['start_date'])), 'd MMMM yyyy')} "
+                                    f"تا {format_jdate(_to_jd(_as_gdate(h['end_date'])), 'd MMMM yyyy')}",
                                     size=10, color=ft.Colors.GREY_600,
                                 ),
                             ],
@@ -351,7 +372,7 @@ def _build_history_section(c, desktop=False) -> ft.Control | None:
                         ft.Container(expand=True),
                         ft.Container(
                             content=ft.Text(
-                                f"{to_persian_digits(len(c.history))} دوره",
+                                f"{to_persian_digits(str(len(c.history)))} دوره",
                                 size=10,
                                 color=ft.Colors.WHITE,
                                 weight=ft.FontWeight.BOLD,

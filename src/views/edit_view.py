@@ -1,4 +1,6 @@
 from datetime import date
+import jdatetime
+from farscal import format_jdate
 
 import flet as ft
 import uuid
@@ -8,6 +10,11 @@ from utils import to_jalali, to_persian_digits
 MAX_LEVELS = 10
 MIN_LEVELS = 2
 
+
+
+def _to_jd(gd: date) -> jdatetime.date:
+    """میلادی → شمسی (jdatetime.date)"""
+    return jdatetime.date.fromgregorian(date=gd)
 
 
 def _new_level_id() -> str:
@@ -65,10 +72,6 @@ def build_edit_view(app) -> ft.Control:
         d = dict(lv)
         d.setdefault("id", _new_level_id())   # داده‌های قدیمیِ بدون id
         levels.append(d)
-
-    levels_column = ft.Column(spacing=8)
-    levels_counter = ft.Text(size=11, color=ft.Colors.GREY_500)
-    removed_level_ids: list[str] = []     # سطوح حذف‌شده در این جلسه ویرایش
 
     def _find_index(level_id: str) -> int | None:
         for i, lv in enumerate(levels):
@@ -333,6 +336,9 @@ def build_edit_view(app) -> ft.Control:
     )
 
     # ---------- تاریخ شروع (فقط نمایش) ----------
+    # ---------- تاریخ شروع (فقط نمایش) ----------
+    start_jd = _to_jd(date.fromisoformat(c.cycle_start_date))
+
     date_section = elevated_card(
         ft.Column([
             ft.Row([
@@ -351,10 +357,9 @@ def build_edit_view(app) -> ft.Control:
                     ft.Column([
                         ft.Text("تاریخ شروع چله", size=10, color=ft.Colors.GREY_600),
                         ft.Text(
-                            to_persian_digits(to_jalali(date.fromisoformat(c.cycle_start_date))),
-                            size=13,
-                            weight=ft.FontWeight.BOLD
-                            ),
+                            format_jdate(start_jd, "WWWW d MMMM yyyy"),
+                            size=13, weight=ft.FontWeight.BOLD,
+                        ),
                     ], spacing=0, expand=True),
                     ft.Text("غیرقابل تغییر", size=10, color=ft.Colors.GREY_500),
                 ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER),

@@ -1,4 +1,6 @@
 from datetime import date
+import jdatetime
+from farscal import open_date_dialog, format_jdate
 import datetime
 import uuid
 
@@ -11,6 +13,11 @@ from ready_chellehs import build_ready_section
 
 MAX_LEVELS = 10
 MIN_LEVELS = 2
+
+
+def _to_jd(gd: date) -> jdatetime.date:
+    """میلادی → شمسی (jdatetime.date)"""
+    return jdatetime.date.fromgregorian(date=gd)
 
 
 def _new_level_id() -> str:
@@ -284,26 +291,25 @@ def build_add_view(app) -> ft.Control:
     refresh_levels()
 
     # ---------- تاریخ شروع ----------
-    selected_start_date = {"value": date.today()}
+    selected_start_date = {"value": date.today()}      # میلادی — مثل قبل
     start_date_text = ft.Text(
-        to_jalali(selected_start_date["value"]),
+        format_jdate(_to_jd(selected_start_date["value"]), "WWWW d MMMM yyyy"),
         size=13, weight=ft.FontWeight.BOLD,
     )
 
-    def on_date_picked(e):
-        if picker.value:
-            selected_start_date["value"] = picker.value.date()
-            start_date_text.value = to_jalali(selected_start_date["value"])
-            page.update()
-
-    picker = ft.DatePicker(
-        first_date=datetime.datetime(2020, 1, 1),
-        last_date=datetime.datetime(2030, 12, 31),
-        on_change=on_date_picked,
-    )
+    def on_start_date_changed(jd: jdatetime.date):
+        selected_start_date["value"] = jd.togregorian()   # ذخیره میلادی — مدل دست‌نخورده
+        start_date_text.value = format_jdate(_to_jd(selected_start_date["value"]), "WWWW d MMMM yyyy")
+        page.update()
 
     def open_picker(e):
-        page.show_dialog(picker)
+        open_date_dialog(
+            page,
+            value=_to_jd(selected_start_date["value"]),
+            #min_date=_to_jd(date.today()),   # شروع از امروز؛ اگر اجازه‌ی تاریخ گذشته می‌خواهید حذف کنید
+            on_selected=on_start_date_changed,
+            title="انتخاب تاریخ شروع چله",
+        )
 
     # ---------- ثبت فرم ----------
     async def submit(e):

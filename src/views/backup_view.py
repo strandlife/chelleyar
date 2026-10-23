@@ -2,10 +2,23 @@ import json
 import os
 from datetime import datetime
 
+import jdatetime
+
+from farscal import format_jdate, format_time
 import flet as ft
 
 from theme import elevated_card
 
+
+def _jalali_dt_str(exported_at: str) -> str:
+    """رشته‌ی ISO میلادی → نمایش شمسی؛ اگر قابل تبدیل نبود همان ورودی برمی‌گردد"""
+    try:
+        dt = datetime.fromisoformat(exported_at)
+        jd = jdatetime.datetime.fromgregorian(datetime=dt)
+        return (f"{format_jdate(jdatetime.date(jd.year, jd.month, jd.day), 'WWWW d MMMM yyyy')}، "
+                f"ساعت {format_time(jd.time(), 'HH:MM')}")
+    except Exception:
+        return exported_at
 
 def build_backup_view(app) -> ft.Control:
     page = app.page
@@ -47,6 +60,16 @@ def build_backup_view(app) -> ft.Control:
             fp = _get_file_picker()
             data = app.db.export_all()
             count = len(data["chellehs"])
+            # ── مهر شمسی روی فایل پشتیبان ──
+            now = datetime.now()
+            jd_now = jdatetime.datetime.fromgregorian(datetime=now)
+            if "exported_at" not in data:
+                data["exported_at"] = now.isoformat(timespec="seconds")
+            data["exported_at_jalali"] = (
+                f"{format_jdate(jdatetime.date(jd_now.year, jd_now.month, jd_now.day), 'yyyy/MM/dd')} "
+                f"{format_time(jd_now.time(), 'HH:MM')}"
+            )
+
             default_name = (
                 f"cheleh_yar_backup_"
                 f"{datetime.now().strftime('%Y%m%d_%H%M')}.json"
@@ -319,7 +342,7 @@ def _show_import_confirm(app, data: dict, on_done):
                 size=13,
             ),
             ft.Text(
-                f"تاریخ ساخت فایل: {exported_at[:19].replace('T', ' ')}",
+                f"تاریخ ساخت فایل:  {_jalali_dt_str(exported_at)}",
                 size=11, color=ft.Colors.GREY_600,
             ),
             ft.Container(height=8),

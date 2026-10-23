@@ -1,10 +1,16 @@
 from datetime import date, timedelta
 import flet as ft
 import uuid
+import jdatetime
+from utils import to_persian_digits
 
-from utils import to_jalali, to_persian_digits
+from farscal import format_jdate
 
 
+
+def _to_jd(gd: date) -> jdatetime.date:
+    """میلادی → شمسی (jdatetime.date)"""
+    return jdatetime.date.fromgregorian(date=gd)
 # ==================================================================
 # صفحه اصلی روز
 # ==================================================================
@@ -36,6 +42,9 @@ def get_day_date(c, day: int) -> date:
     start = date.fromisoformat(c.cycle_start_date)
     return start + timedelta(days=day - 1)
 
+def get_day_date_jd(c, day: int) -> jdatetime.date:
+    """تاریخ شمسیِ روز n از چله"""
+    return _to_jd(get_day_date(c, day))
 
 def build_day_detail_view(app) -> ft.Control:
     c = app.current_chelleh
@@ -96,9 +105,7 @@ def _build_day_header(c, day, log, is_editable) -> ft.Container:
         badge_color = ft.Colors.GREY_500
 
     try:
-        start = date.fromisoformat(c.cycle_start_date)
-        day_date = start + timedelta(days=day - 1)
-        date_str = to_jalali(day_date)
+        date_str = format_jdate(get_day_date_jd(c, day), "WWWW d MMMM yyyy")
     except Exception:
         date_str = ""
 
@@ -125,7 +132,7 @@ def _build_day_header(c, day, log, is_editable) -> ft.Container:
             weight=ft.FontWeight.BOLD,
         ),
         ft.Text(
-            to_persian_digits(date_str),
+            date_str,
             size=11,
             color=ft.Colors.GREY_600,
         ),
@@ -394,7 +401,7 @@ def _read_only_view(app, c, day, log, day_header) -> ft.Control:
             _read_row(
                 ft.Icons.STAR, "سطح انتخاب‌شده",
                 f"{level_info['title']} "
-                f"({to_persian_digits(str(level_info['score']))} امتیاز)",
+                f"({str(level_info['score'])} امتیاز)",
                 level_info["color"],
             )
         )
@@ -672,16 +679,14 @@ def _show_failure_dialog(app, c, log, lv):
 def _show_completion_dialog(app, c):
     page = app.page
     action = {"value": None}
-    def get_day_date(day):
-        start = date.fromisoformat(c.cycle_start_date)
-        day_date = start + timedelta(days=day - 1)
-        return day_date
+    start_jd = _to_jd(date.fromisoformat(c.cycle_start_date))
+    end_jd = _to_jd(get_day_date(c, c.current_day))
 
     def do_action():
         c.history.append({
             "cycle": c.cycle_number,
             "start_date": c.cycle_start_date,
-            "end_date": get_day_date(c, c.current_day),
+            "end_date": get_day_date(c, c.current_day).isoformat(),
             "days_completed": c.total_days,
             "status": "completed",
         })
@@ -689,7 +694,7 @@ def _show_completion_dialog(app, c):
             c.cycle_number += 1
             c.total_days += 40
             c.current_day += 1
-            c.cycle_start_date = get_day_date(c, c.current_day)
+            c.cycle_start_date = get_day_date(c, c.current_day).isoformat()
             app.db.save_chelleh(c)
             app.snack(
                 f"چله تمدید شد! از روز {c.current_day} ادامه دهید 🎉")
@@ -711,7 +716,9 @@ def _show_completion_dialog(app, c):
             ft.Text("تبریک! چله کامل شد", weight=ft.FontWeight.BOLD),
         ]),
         content=ft.Text(
-            f"شما {c.total_days} روز را با موفقیت گذراندید.\n\n"
+            f"شما {to_persian_digits(str(c.total_days))} روز را با موفقیت گذراندید.\n"
+            f"از {format_jdate(start_jd, 'd MMMM yyyy')} "
+            f"تا {format_jdate(end_jd, 'd MMMM yyyy')}\n\n"
             "آیا می‌خواهید چله را تمدید کنید (۴۰ روز دیگر) "
             "یا آن را به پایان برسانید؟",
             size=13,
@@ -766,7 +773,7 @@ def _show_reassign_dialog(app, c, day, log):
             ft.DropdownOption(
                 key=lv["id"],
                 text=f"{lv['title']} "
-                     f"({to_persian_digits(str(lv['score']))} امتیاز)",
+                     f"({str(lv['score'])} امتیاز)",
             )
             for lv in c.levels if int(lv.get("score", 0)) > 0
         ],

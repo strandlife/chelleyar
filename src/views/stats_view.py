@@ -1,9 +1,23 @@
 from datetime import date, timedelta
+import jdatetime
 import flet as ft
 import flet_charts as fch
 
+from farscal import format_jdate
 from theme import elevated_card
 from utils import to_jalali, to_persian_digits, find_level_by_id, resolve_log_level
+
+
+
+
+def _to_jd(gd: date) -> jdatetime.date:
+    """میلادی → شمسی (jdatetime.date)"""
+    return jdatetime.date.fromgregorian(date=gd)
+
+
+def _as_gdate(v) -> date:
+    """str ISO یا date — هر دو (رکوردهای قدیمیِ pre-fix)"""
+    return v if isinstance(v, date) else date.fromisoformat(v)
 
 
 def build_stats_view(app) -> ft.Control:
@@ -37,8 +51,15 @@ def build_stats_view(app) -> ft.Control:
             score = rec.get("score", 0)
             lv = resolve_log_level(c, rec)
             rod_color = lv["color"] if lv else "#4CAF50"
+            total_score += score
+            done_days += 1
+            if score > best_day_score:
+                best_day_score, best_day_num = score, i
+            if lv:
+                lid = lv.get("id")
+                success_level_counts[lid] = success_level_counts.get(lid, 0) + 1
         elif result == "failure":
-            score = 0
+            failed_days += 1
             rod_color = "#C62828"
         else:
             score = 0
@@ -114,7 +135,11 @@ def build_stats_view(app) -> ft.Control:
                         color=rod_color,
                         width=8,
                         border_radius=3,
-                        tooltip=to_persian_digits(f"روز {i+1}: {score} امتیاز"),
+                        tooltip=to_persian_digits(
+                            f"روز {i + 1} "
+                            f"({format_jdate(_to_jd(start + timedelta(days=i)), 'd MMMM')}): "
+                            f"{score} امتیاز"
+                        ),
                     )
                 ],
             )
@@ -133,7 +158,7 @@ def build_stats_view(app) -> ft.Control:
                 )
                 for j in range(0, c.total_days, max(1, c.total_days // 8))
             ],
-            label_size=20,
+            label_size=26,
         ),
         left_axis=fch.ChartAxis(
             label_size=24,
@@ -244,7 +269,7 @@ def build_stats_view(app) -> ft.Control:
                         ft.Text(title, size=12,
                                 weight=ft.FontWeight.W_500),
                         ft.Text(
-                            to_persian_digits(to_jalali(d)),
+                            format_jdate(_to_jd(d), "d MMMM yyyy"),
                             size=10,
                             color=ft.Colors.GREY_600
                             ),
@@ -446,6 +471,11 @@ def _build_history_card(c) -> ft.Container | None:
                                 size=12,
                                 weight=ft.FontWeight.BOLD
                                 ),
+                            ft.Text(
+                                f"از {format_jdate(_to_jd(_as_gdate(h['start_date'])), 'd MMMM yyyy')} "
+                                f"تا {format_jdate(_to_jd(_as_gdate(h['end_date'])), 'd MMMM yyyy')}",
+                                size=10, color=ft.Colors.GREY_600,
+                            ),
                             ft.Container(
                                 content=ft.Text(status_text, size=10,
                                                 color=ft.Colors.WHITE,
