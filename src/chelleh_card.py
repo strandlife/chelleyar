@@ -1,12 +1,29 @@
 import flet as ft
 import json
 import base64
-from datetime import date
+import jdatetime
+from datetime import date, timedelta
 from utils import to_persian_digits, to_jalali
 from views.lock_dialogs import show_unlock_dialog
+from farscal import format_jdate
 
 
 
+
+
+
+def _to_jd(gd: date) -> jdatetime.date:
+    """میلادی → شمسی (jdatetime.date)"""
+    return jdatetime.date.fromgregorian(date=gd)
+
+
+def _chelleh_day_iso(c, day: int) -> str:
+    """تاریخ میلادیِ روز day از چله به‌صورت ISO — با فالبک امن"""
+    try:
+        start = date.fromisoformat(c.cycle_start_date)
+        return (start + timedelta(days=day - 1)).isoformat()
+    except Exception:
+        return (c.cycle_start_date or date.today().isoformat())
 
 # ==================================================================
 # اشتراک‌گذاری چله
@@ -25,7 +42,7 @@ def _find_level_by_id(c, level_id) -> dict | None:
     return None
 
 
-def failure_level(self) -> dict | None:
+def _failure_level(self) -> dict | None:
     for lv in (self.levels or []):
         if int(lv.get("score", 0)) == 0:
             return lv
@@ -355,8 +372,13 @@ def _show_share_dialog(app, c):
 # ==================================================================
 
 def _get_day_state(c, day: int):
-    """(رنگ، tooltip) وضعیت یک روز مشخص برای نوار چندرنگ."""
+    """(رنگ، tooltip) وضعیت یک روز مشخص برای نوار چندرنگ — با تاریخ شمسی."""
     log = c.daily_logs.get(str(day))
+    try:
+        tip_date = format_jdate(_to_jd(date.fromisoformat(_chelleh_day_iso(c, day))), "d MMMM")
+    except Exception:
+        tip_date = ""
+    tag = f"روز {day}" + (f" ({tip_date})" if tip_date else "")
 
     # روزِ ثبت‌شده با نتیجه مشخص
     if log and log.get("result"):
@@ -364,28 +386,27 @@ def _get_day_state(c, day: int):
         if log["result"] == "success":
             if lv is not None:
                 return (lv.get("color", "#4CAF50"),
-                        f"روز {day}: {lv.get('title') or 'بدون عنوان'} — موفق ✅")
-            return "#2E7D32", f"روز {day}: موفق ✅"
-        # شکست
+                        f"{tag}: {lv.get('title') or 'بدون عنوان'} — موفق ✅")
+            return "#2E7D32", f"{tag}: موفق ✅"
         if lv is None:
             lv = _failure_level(c)
         title = (lv or {}).get("title") or "بدون عنوان"
-        return ft.Colors.RED_400, f"روز {day}: {title} — شکست ❌"
+        return ft.Colors.RED_400, f"{tag}: {title} — شکست ❌"
 
     # صبح/شب ثبت شده ولی نتیجه هنوز مشخص نیست
     if log and (log.get("morning_saved") or log.get("evening_saved")):
         lv = _resolve_log_level(c, log)
         if lv is not None:
             return (ft.Colors.with_opacity(0.5, lv.get("color", "#4CAF50")),
-                    f"روز {day}: {lv.get('title')} — در انتظار نتیجه ⏳")
-        return ft.Colors.AMBER_400, f"روز {day}: در انتظار نتیجه ⏳"
+                    f"{tag}: {lv.get('title')} — در انتظار نتیجه ⏳")
+        return ft.Colors.AMBER_400, f"{tag}: در انتظار نتیجه ⏳"
 
     # امروز — هنوز چیزی ثبت نشده
     if day == c.current_day and c.status != "completed":
-        return ft.Colors.PRIMARY, f"روز {day} — امروز 📍"
+        return ft.Colors.PRIMARY, f"{tag} — امروز 📍"
 
     # روزهای آینده
-    return ft.Colors.with_opacity(0.18, ft.Colors.GREY), f"روز {day}"
+    return ft.Colors.with_opacity(0.18, ft.Colors.GREY), tag
 
 
 def build_level_bar(c, height: int = 10, expand: bool = False) -> ft.Control:
@@ -521,7 +542,7 @@ def build_chelleh_card(app, c) -> ft.Control:
                 last_date_day = c.cycle_start_date
             date_day = to_jalali(date.fromisoformat(last_date_day)).split('/')
             date_day = date_day[1] + '/' +date_day[2]
-
+            jd = _to_jd(date.fromisoformat(_chelleh_day_iso(c, day)))
             circle_content = ft.Column(
                 [
                     ft.Text(
@@ -531,7 +552,7 @@ def build_chelleh_card(app, c) -> ft.Control:
                         color=ft.Colors.WHITE,
                     ),
                     ft.Text(
-                        to_persian_digits(date_day),
+                        format_jdate(jd, "d MMMM"),
                         size=10,
                         color=ft.Colors.WHITE,
                         )
