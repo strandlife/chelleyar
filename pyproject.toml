@@ -13,7 +13,7 @@ dependencies = [
     "flet-charts",
     "persiantools",
     "cryptography",
-    "jdatatime",
+    "jdatetime",
 ]
 
 
