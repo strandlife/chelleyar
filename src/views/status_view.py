@@ -10,12 +10,9 @@ def _to_jd(gd: date) -> jdatetime.date:
     """میلادی → شمسی (jdatetime.date)"""
     return jdatetime.date.fromgregorian(date=gd)
 
-
 def _as_gdate(v) -> date:
     """تحمل هر دو نوع: str ISO یا date (رکوردهای قدیمی تاریخچه)"""
     return v if isinstance(v, date) else date.fromisoformat(v)
-
-
 
 # ---------- ابزار تشخیص دسکتاپ ----------
 def _is_desktop(app) -> bool:
@@ -24,7 +21,6 @@ def _is_desktop(app) -> bool:
         return bool(page and page.width and page.width >= 900)
     except Exception:
         return False
-
 
 def build_status_view(app) -> ft.Control:
     c = app.current_chelleh
@@ -46,17 +42,20 @@ def build_status_view(app) -> ft.Control:
     # ---------- بخش روزها ----------
     days_section = ft.Column(
         [
-            ft.Row(
-                [
-                    ft.Icon(ft.Icons.CALENDAR_VIEW_WEEK, size=18, color=ft.Colors.PRIMARY),
-                    ft.Text("روزها", size=15 if desktop else 14, weight=ft.FontWeight.BOLD),
-                ],
-                spacing=8,
-            ),
-            ft.Text(
-                "برای ثبت یادداشت و وضعیت، روی هر روز کلیک کنید",
-                size=11,
-                color=ft.Colors.GREY_600,
+        ft.Container(
+            content=ft.Row(
+                    [
+                        ft.Text("روزها", size=15 if desktop else 14, weight=ft.FontWeight.BOLD), 
+                        ft.Text(
+                            "برای ثبت یادداشت و وضعیت، روی هر روز کلیک کنید",
+                            size=11,
+                            color=ft.Colors.GREY_600,
+                        ),
+                    ]
+                ),
+                bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
+                border_radius=10,
+                padding=10,
             ),
             ft.Container(height=8),
             grid,
@@ -184,8 +183,6 @@ def _build_summary_card(c, prog, is_done, desktop=False) -> ft.Container:
         ),
     )
 
-
-# ---------- شبکه روزها ----------
 # ---------- شبکه روزها ----------
 def _build_day_grid(app, c, desktop=False) -> ft.Control:
     cells = []
@@ -224,16 +221,15 @@ def _make_day_cell(app, c, i, day_date, desktop=False, locked=False) -> ft.Conta
         bg, fg = "#C62828", ft.Colors.WHITE
         border = None
     elif locked:
-        # سررسیدنشده: کم‌رنگ‌ترین حالت
-        bg = ft.Colors.with_opacity(0.05, ft.Colors.GREY)
+        bg = ft.Colors.SURFACE_CONTAINER_HIGHEST
         fg = ft.Colors.GREY_400
         border = None
     elif is_current:
-        bg = ft.Colors.with_opacity(0.12, ft.Colors.PRIMARY)
+        bg = ft.Colors.SECONDARY_CONTAINER 
         fg = ft.Colors.PRIMARY
         border = ft.Border.all(2, ft.Colors.PRIMARY)
     else:
-        bg = ft.Colors.with_opacity(0.08, ft.Colors.GREY)
+        bg = ft.Colors.SURFACE_CONTAINER_HIGHEST
         fg = ft.Colors.GREY_500
         border = None
 
@@ -274,7 +270,6 @@ def _make_day_cell(app, c, i, day_date, desktop=False, locked=False) -> ft.Conta
         on_click=on_click if is_clickable else None,
         tooltip="این روز هنوز نرسیده" if locked else None,
         disabled=locked,
-        # موبایل: ۴ سلول در ردیف | تبلت: ۶ | دسکتاپ: ۸
         col={"xs": 3, "sm": 2, "md": 2, "lg": 1.5, "xl": 1.5},
         animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
     )

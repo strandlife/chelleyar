@@ -9,13 +9,9 @@ from farscal import format_jdate
 
 
 
-
-
-
 def _to_jd(gd: date) -> jdatetime.date:
     """میلادی → شمسی (jdatetime.date)"""
     return jdatetime.date.fromgregorian(date=gd)
-
 
 def _chelleh_day_iso(c, day: int) -> str:
     """تاریخ میلادیِ روز day از چله به‌صورت ISO — با فالبک امن"""
@@ -41,13 +37,11 @@ def _find_level_by_id(c, level_id) -> dict | None:
             return lv
     return None
 
-
 def _failure_level(self) -> dict | None:
     for lv in (self.levels or []):
         if int(lv.get("score", 0)) == 0:
             return lv
     return None
-
 
 def _resolve_log_level(c, log) -> dict | None:
     """سطح ثبت‌شده‌ی یک لاگ را پیدا می‌کند.
@@ -63,7 +57,6 @@ def _resolve_log_level(c, log) -> dict | None:
     if isinstance(idx, int) and 0 <= idx < len(c.levels or []):
         return c.levels[idx]
     return None
-
 
 def _card_actions(app, c, is_locked: bool) -> list[ft.Control]:
     """اکشن‌های انتهای کارت — همان الگوی appbar:
@@ -146,8 +139,6 @@ def _card_actions(app, c, is_locked: bool) -> list[ft.Control]:
             ),
         ]
 
-        # آیکون قفل: اگر چله رمزنگاری‌شده و باز است → «برداشتن قفل»
-        #            اگر رمزنگاری‌نشده است → «قفل کردن با رمز»
         if c.encrypted:
             actions.append(
                 ft.IconButton(
@@ -263,7 +254,6 @@ def make_share_code(c) -> str:
     return SHARE_PREFIX + base64.urlsafe_b64encode(
         raw.encode("utf-8")).decode("ascii")
 
-
 def _get_service(page: ft.Page, service_type):
     """سرویس موردنظر را از page.services برمی‌گرداند؛ اگر نبود می‌سازد."""
     for s in getattr(page, "services", []):
@@ -272,7 +262,6 @@ def _get_service(page: ft.Page, service_type):
     svc = service_type()
     page.services.append(svc)
     return svc
-
 
 def _show_share_dialog(app, c):
     page = app.page
@@ -288,8 +277,6 @@ def _show_share_dialog(app, c):
         filled=True,
     )
 
-    # ------- حالت‌های دیالوگ -------
-    # action["value"] می‌تواند None, "copy" یا "close" باشد
     action = {"value": None}
 
     async def perform_copy():
@@ -309,8 +296,6 @@ def _show_share_dialog(app, c):
         val = action.get("value")
         if val == "copy":
             page.run_task(perform_copy)
-        # برای ارسال (share) کار دیگری لازم نیست —
-        # چون ShareText به‌صورت سمت-کلاینت اجرا شده.
 
     def on_cancel(e):
         action["value"] = None
@@ -354,8 +339,6 @@ def _show_share_dialog(app, c):
                     share_message,
                     subject="چله‌یار",
                 ),
-                # روی وب این دکمه بعد از اجرای ShareText بسته نمی‌شود
-                # مگر اینکه کاربر بعداً خودش ببندد.
                 on_click=on_cancel,
                 style=ft.ButtonStyle(
                     bgcolor=ft.Colors.PRIMARY,
@@ -498,9 +481,8 @@ def get_level_info(c) -> dict:
     result = log.get("result")
     if result == "success":
         mode = "success"
-    elif result:  # هر مقدار دیگر (مثل "failure")
+    elif result:
         mode = "failure"
-        # اگر level_id معتبر نبود، سطح شکست را از خود مدل بگیر
         if level is None:
             level = _failure_level(c)
     else:
@@ -525,13 +507,10 @@ def build_chelleh_card(app, c) -> ft.Control:
     if is_locked:
         hint = (getattr(c, "name_hint", "") or "").strip()
         title = hint if hint else f" {c.id[:6]}"
-        
-        subtitle = "برای مشاهده، رمز عبور را وارد کنید"
         circle_content = ft.Icon(ft.Icons.LOCK, color=ft.Colors.WHITE, size=22)
         circle_bg = ft.Colors.GREY_600
     else:
         title = c.display_name or c.name or "بدون نام"
-        subtitle = c.task or ""
         if is_done:
             circle_content = ft.Icon(ft.Icons.CHECK,color=ft.Colors.WHITE, size=22)
             circle_bg = "#2E7D32"
@@ -639,7 +618,8 @@ def build_chelleh_card(app, c) -> ft.Control:
 
     # ---------- کارت اصلی ----------
     card = ft.Container(
-        content=ft.Row([
+        content=ft.Row(
+            [
             ft.Container(
                 content=circle_content,
                 width=52, height=52,
@@ -647,31 +627,35 @@ def build_chelleh_card(app, c) -> ft.Control:
                 border_radius=26,
                 alignment=ft.Alignment.CENTER,
             ),
-            ft.Column([
-                ft.Row([
-                    ft.Column([
-                        title_row,
-                    ], expand=True),
+            ft.Column(
+                [
+                ft.Row(
+                    [ft.Column([title_row,], expand=True),
                     *actions,
-                ]),
+                    ]
+                ),
                 bar_row,
-            ], spacing=3, expand=True),
-        ], spacing=10),
+                ],
+                spacing=3,
+                expand=True
+                ),
+            ], 
+            spacing=10,
+        ),
         padding=ft.Padding.symmetric(vertical=12, horizontal=12),
         border_radius=16,
         bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
         shadow=ft.BoxShadow(
-            blur_radius=8, spread_radius=0,
+            blur_radius=8,
+            spread_radius=0,
             color=ft.Colors.with_opacity(0.05, ft.Colors.BLACK),
             offset=ft.Offset(0, 2),
         ),
         ink=True,
         on_click=on_card_click,
+        margin=5,
     )
-
     return card
-
-
 
 def _show_delete_dialog(app, ch):
     page = app.page

@@ -1,6 +1,6 @@
 from datetime import date
 from persiantools.jdatetime import JalaliDate
-from datetime import date, timedelta
+from datetime import date
 import flet as ft
 
 
@@ -51,7 +51,7 @@ def compute_current_day(c, today: date | None = None) -> int:
     if today is None:
         today = date.today()
     start = date.fromisoformat(c.cycle_start_date)
-    diff = (today - start).days + 1   # خودِ روز شروع = روز ۱
+    diff = (today - start).days + 1
     return min(max(diff, 0), c.total_days)
 
 
@@ -61,7 +61,7 @@ def get_unrecorded_days(c, today: date | None = None) -> list[int]:
         return []
     current = compute_current_day(c, today)
     return [
-        i for i in range(1, current)          # برای حذف «امروز»: range(1, current)
+        i for i in range(1, current)
         if not c.daily_logs.get(str(i), {}).get("result")
     ]
 

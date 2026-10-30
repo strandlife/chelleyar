@@ -9,9 +9,9 @@ from urllib.parse import unquote
 
 
 # ---------- پالت رنگ ----------
-PRIMARY = "#0D47A1"          # آبی نیلی
+PRIMARY = "#0D47A1"
 PRIMARY_LIGHT = "#1976D2"
-ACCENT = "#FFB300"           # طلایی
+ACCENT = "#FFB300"
 SUCCESS = "#2E7D32"
 DANGER = "#C62828"
 SURFACE = "#F5F7FA"
@@ -31,15 +31,19 @@ def make_appbar(
     leading = None
     if show_back:
         leading = ft.IconButton(
-            ft.Icons.ARROW_FORWARD,   # در RTL به معنای بازگشت
+            ft.Icons.ARROW_FORWARD,
             icon_color=ft.Colors.PRIMARY,
             tooltip="بازگشت",
             on_click=on_back,
         )
 
     title_control = ft.Column([
-        ft.Text(title, size=16, weight=ft.FontWeight.BOLD,
-                color=ft.Colors.PRIMARY),
+        ft.Text(
+            title,
+            size=16,
+            weight=ft.FontWeight.BOLD,
+            color=ft.Colors.PRIMARY
+            ),
         *( [ft.Text(subtitle, size=11, color=ft.Colors.GREY_600,
                     max_lines=1, overflow=ft.TextOverflow.ELLIPSIS)]
            if subtitle else [] ),
@@ -109,17 +113,27 @@ def gradient_header(title: str, subtitle: str = "",
         row_children.append(ft.Icon(icon, color=ft.Colors.WHITE, size=28))
     row_children.append(
         ft.Column([
-            ft.Text(title, size=20, weight=ft.FontWeight.BOLD,
-                    color=ft.Colors.WHITE),
-            *( [ft.Text(subtitle, size=12,
-                        color=ft.Colors.with_opacity(0.85, ft.Colors.WHITE))]
+            ft.Text(
+                title,
+                size=20,
+                weight=ft.FontWeight.BOLD,
+                color=ft.Colors.WHITE
+                ),
+            *( [ft.Text(
+                subtitle,
+                size=12,
+                color=ft.Colors.with_opacity(0.85, ft.Colors.WHITE)
+                )]
                if subtitle else [] ),
         ], spacing=2, expand=True)
     )
 
     return ft.Container(
-        content=ft.Row(row_children, spacing=12,
-                       vertical_alignment=ft.CrossAxisAlignment.CENTER),
+        content=ft.Row(
+            row_children,
+            spacing=12,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER
+            ),
         padding=ft.Padding.symmetric(vertical=18, horizontal=20),
         border_radius=ft.BorderRadius.only(
             bottom_left=20, bottom_right=20),
@@ -182,7 +196,6 @@ def parse_share_code(code: str) -> dict:
     if not code or not code.strip():
         raise ValueError("کد را وارد کنید")
 
-    # پاک‌سازی: URL-encoding (کپی از ایمیل/پیام‌رسان) + فاصله‌ها و شکست خط
     cleaned = unquote(code.strip())
     cleaned = "".join(cleaned.split())
 
@@ -192,7 +205,7 @@ def parse_share_code(code: str) -> dict:
 
     b64 = cleaned[prefix_len:]
     try:
-        b64 += "=" * (-len(b64) % 4)   # جبران padding ناقص
+        b64 += "=" * (-len(b64) % 4)
         raw = base64.urlsafe_b64decode(b64.encode("ascii"))
         data = json.loads(raw.decode("utf-8"))
     except Exception:
@@ -263,7 +276,7 @@ def show_import_dialog(app):
             ft.Icons.CONTENT_PASTE,
             tooltip="چسباندن از کلیپ‌بورد",
             icon_size=18,
-            on_click=None,   # پایین‌تر ست می‌شود
+            on_click=None,
         ),
     )
 
@@ -293,15 +306,25 @@ def show_import_dialog(app):
         return [
             ft.Row([
                 ft.Icon(ft.Icons.INBOX, size=16, color=ft.Colors.PRIMARY),
-                ft.Text(d["display_name"], size=14,
-                        weight=ft.FontWeight.BOLD, expand=True,
-                        max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
-                ft.Text(f"{d['total_days']} روز",
-                        size=10, color=ft.Colors.GREY_600),
+                ft.Text(
+                    d["display_name"],
+                    size=14,
+                    weight=ft.FontWeight.BOLD, expand=True,
+                    max_lines=1, overflow=ft.TextOverflow.ELLIPSIS
+                    ),
+                ft.Text(
+                    f"{d['total_days']} روز",
+                    size=10,
+                    color=ft.Colors.GREY_600
+                    ),
             ], spacing=6),
-            ft.Text(d["task"] or "بدون توضیح وظیفه",
-                    size=11, color=ft.Colors.GREY_600,
-                    max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
+            ft.Text(
+                d["task"] or "بدون توضیح وظیفه",
+                size=11,
+                color=ft.Colors.GREY_600,
+                max_lines=2,
+                overflow=ft.TextOverflow.ELLIPSIS
+                ),
             *level_rows,
         ]
 

@@ -197,6 +197,7 @@ def build_backup_view(app) -> ft.Control:
         ink=True,
         on_click=lambda e: page.run_task(export_backup, e),
         animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
+        expand=True
     )
 
     import_btn = ft.Container(
@@ -235,6 +236,7 @@ def build_backup_view(app) -> ft.Control:
         ink=True,
         on_click=lambda e: page.run_task(import_backup, e),
         animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
+        expand=True
     )
 
     # ---------- لیست داده‌های فعلی (خلاصه) ----------
@@ -253,38 +255,56 @@ def build_backup_view(app) -> ft.Control:
                        str(sum(len(c.daily_logs) for c in app.chellehs))),
             _stat_line("چله‌های تکمیل‌شده",
                        str(sum(1 for c in app.chellehs
-                               if c.status == "completed"))),
+                    if c.status == "completed"))),
         ], spacing=6),
         padding=16,
     )
-
     # ---------- UI ----------
-    return ft.Column([
-        ft.Container(
-            content=ft.Column([
-                info_card,
-                ft.Container(height=14),
-                export_btn,
-                ft.Container(height=10),
-                import_btn,
-                ft.Container(height=14),
-                current_data_card,
-                ft.Container(height=14),
-                status_col,
-                ft.Container(height=24),
-            ], spacing=0),
-            padding=ft.Padding.symmetric(vertical=16, horizontal=16),
-        ),
-    ], spacing=0, scroll=ft.ScrollMode.AUTO, expand=True)
+    if app.is_desktop():
+        content = ft.Column([
+            ft.Container(
+                content=ft.Column([
+                    info_card,
+                    ft.Container(height=14),
+                    ft.Row([
+                    export_btn,
+                    import_btn,
+                    ], expand=True),
+                    ft.Container(height=14),
+                    current_data_card,
+                    ft.Container(height=14),
+                    status_col,
+                    ft.Container(height=24),
+                ], spacing=0),
+                padding=ft.Padding.symmetric(vertical=16, horizontal=16),
+            ),
+        ], spacing=0, scroll=ft.ScrollMode.AUTO, expand=True)
+    else:
+        content = ft.Column([
+            ft.Container(
+                content=ft.Column([
+                    info_card,
+                    ft.Container(height=14),
+                    export_btn,
+                    ft.Container(height=10),
+                    import_btn,
+                    ft.Container(height=14),
+                    current_data_card,
+                    ft.Container(height=14),
+                    status_col,
+                    ft.Container(height=24),
+                ], spacing=0),
+                padding=ft.Padding.symmetric(vertical=16, horizontal=16),
+            ),
+        ], spacing=0, scroll=ft.ScrollMode.AUTO, expand=True)
+    return content
 
 
 # ---------- دیالوگ تأیید ورود ----------
 def _show_import_confirm(app, data: dict, on_done):
     page = app.page
-
     chellehs_count = len(data.get("chellehs") or [])
     exported_at = data.get("exported_at", "نامشخص")
-
     mode = {"replace": False}
 
     async def perform_import():

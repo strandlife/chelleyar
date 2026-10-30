@@ -1,6 +1,5 @@
-# flet_shamsi_qt.py — ویجت‌های تاریخ/زمان شمسی برای Flet 1، به سبک PySide6
 from __future__ import annotations
-from datetime import datetime, time as dtime, timedelta
+from datetime import time as dtime, timedelta
 
 import flet as ft
 import jdatetime
@@ -140,9 +139,9 @@ class ShamsiCalendar:
         self._vy, self._vm = self.value.year, self.value.month
         self._page_update()
 
-    def show_today(self):     self.set_date(jdatetime.date.today())
-    def next_month(self):     self._nav(+1)
-    def previous_month(self): self._nav(-1)
+    def show_today(self):self.set_date(jdatetime.date.today())
+    def next_month(self):self._nav(+1)
+    def previous_month(self):self._nav(-1)
 
     # — داخلی —
     def _page_update(self):
@@ -166,12 +165,16 @@ class ShamsiCalendar:
         y_lo, y_hi = min(self.first_year, self._vy), max(self.last_year, self._vy)
         return ft.Row([
             ft.IconButton(ft.Icons.CHEVRON_LEFT, tooltip="ماه قبل", on_click=lambda e: self._nav(-1)),
-            ft.Dropdown(width=110, value=str(self._vm),
-                        options=[ft.DropdownOption(key=str(m), text=J_MONTHS[m - 1]) for m in range(1, 13)],
-                        on_select=lambda e: self._view(int(e.control.value), self._vy)),
-            ft.Dropdown(width=90, value=str(self._vy),
-                        options=[ft.DropdownOption(key=str(y), text=fa(y)) for y in range(y_lo, y_hi + 1)],
-                        on_select=lambda e: self._view(self._vm, int(e.control.value))),
+            ft.Dropdown(
+                width=110, value=str(self._vm),
+                options=[ft.DropdownOption(key=str(m), text=J_MONTHS[m - 1]) for m in range(1, 13)],
+                on_select=lambda e: self._view(int(e.control.value), self._vy)
+                ),
+            ft.Dropdown(
+                width=90, value=str(self._vy),
+                options=[ft.DropdownOption(key=str(y), text=fa(y)) for y in range(y_lo, y_hi + 1)],
+                on_select=lambda e: self._view(self._vm, int(e.control.value))
+                ),
             ft.IconButton(ft.Icons.CHEVRON_RIGHT, tooltip="ماه بعد", on_click=lambda e: self._nav(+1)),
         ], vertical_alignment=ft.CrossAxisAlignment.CENTER)
 
@@ -213,7 +216,6 @@ class ShamsiCalendar:
         return ft.Row([ft.TextButton("امروز", on_click=lambda e: self.show_today())],
                       width=7 * _CELL_W + 12, alignment=ft.MainAxisAlignment.END)
 
-# ───────────────────── ۲) ShamsiDateEdit ≈ QDateEdit ─────────────────────
 
 # ───────────────────── ۲) ShamsiDateEdit ≈ QDateEdit (بخش‌محور) ─────────────────────
 
@@ -296,14 +298,16 @@ class ShamsiDateEdit:
             if m == 0:    m, y = 12, y - 1
             elif m == 13: m, y = 1, y + 1
             d = min(d, _days_in_month(y, m))
-        else:  # day — مثل Qt به ماه/سال بعد می‌غلتد
+        else:
             nd = _shift_date(jdatetime.date(y, m, d), delta)
             y, m, d = nd.year, nd.month, nd.day
         self.set_date(jdatetime.date(y, m, d))
 
     def open_popup(self, e=None):
-        cal = ShamsiCalendar(on_change=self._picked, value=self.value,
-                             min_date=self._min, max_date=self._max)
+        cal = ShamsiCalendar(
+            on_change=self._picked, value=self.value,
+            min_date=self._min, max_date=self._max
+            )
         cal._page = self._page
         self._dlg = ft.AlertDialog(modal=True, title=ft.Text("انتخاب تاریخ"), content=cal.body,
                                    actions=[ft.TextButton("بستن", on_click=self.close_popup)])
@@ -332,9 +336,11 @@ class ShamsiTimeEdit:
         self._refresh()
 
     def _make_field(self, sec, w):
-        return ft.TextField(value="", width=w, dense=True, text_align=ft.TextAlign.CENTER,
-                            on_focus=lambda e, s=sec: self._set_section(s),
-                            on_blur=self._apply_all, on_submit=self._apply_all)
+        return ft.TextField(
+            value="", width=w, dense=True, text_align=ft.TextAlign.CENTER,
+            on_focus=lambda e, s=sec: self._set_section(s),
+            on_blur=self._apply_all, on_submit=self._apply_all
+            )
 
     def _set_section(self, sec): self._section = sec
 
@@ -373,7 +379,7 @@ class ShamsiTimeEdit:
     def _step_section(self, delta):
         h, mi = self.value.hour, self.value.minute
         if self._section == "hour":
-            h = (h + delta) % 24            # مثل Qt: wrap مستقل، بدون دست‌کاری دقیقه
+            h = (h + delta) % 24
         else:
             mi = (mi + delta * self._step_min) % 60
         self.set_time(dtime(h, mi))
@@ -389,12 +395,16 @@ class ShamsiDateTimeEdit:
         v = _clamp_datetime(_as_datetime(value) or jdatetime.datetime.today(), self._min, self._max)
         min_d = jdatetime.date(self._min.year, self._min.month, self._min.day) if self._min else None
         max_d = jdatetime.date(self._max.year, self._max.month, self._max.day) if self._max else None
-        self._de = ShamsiDateEdit(on_change=self._sub_changed, value=jdatetime.date(v.year, v.month, v.day),
-                                  min_date=min_d, max_date=max_d,
-                                  first_year=first_year, last_year=last_year,
-                                  calendar_popup=calendar_popup)
-        self._te = ShamsiTimeEdit(on_change=self._sub_changed, value=dtime(v.hour, v.minute),
-                                  minute_step=minute_step)
+        self._de = ShamsiDateEdit(
+            on_change=self._sub_changed, value=jdatetime.date(v.year, v.month, v.day),
+            min_date=min_d, max_date=max_d,
+            first_year=first_year, last_year=last_year,
+            calendar_popup=calendar_popup
+            )
+        self._te = ShamsiTimeEdit(
+            on_change=self._sub_changed, value=dtime(v.hour, v.minute),
+            minute_step=minute_step
+            )
         self.value = v
         self.body = ft.Row([self._de.body, self._te.body], spacing=10,
                            vertical_alignment=ft.CrossAxisAlignment.CENTER)
@@ -405,7 +415,7 @@ class ShamsiDateTimeEdit:
                              self._min, self._max)
         changed = dt != self.value
         self.value = dt
-        self._de.set_date(jdatetime.date(dt.year, dt.month, dt.day))   # بازتاب clamp
+        self._de.set_date(jdatetime.date(dt.year, dt.month, dt.day))
         self._te.set_time(dtime(dt.hour, dt.minute))
         if changed and self.on_change: self.on_change(self.value)
 
@@ -435,7 +445,7 @@ def open_date_dialog(page, value=None, on_selected=None,
     cal._page = page
 
     def day_picked(d):
-        page.pop_dialog()            # بستن دیالوگ بعد از انتخاب روز
+        page.pop_dialog()
         if on_selected:
             on_selected(d)
 

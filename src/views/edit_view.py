@@ -336,7 +336,6 @@ def build_edit_view(app) -> ft.Control:
     )
 
     # ---------- تاریخ شروع (فقط نمایش) ----------
-    # ---------- تاریخ شروع (فقط نمایش) ----------
     start_jd = _to_jd(date.fromisoformat(c.cycle_start_date))
 
     date_section = elevated_card(
