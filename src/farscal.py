@@ -5,7 +5,8 @@ import flet as ft
 import jdatetime
 
 __all__ = ["ShamsiCalendar", "ShamsiDateEdit", "ShamsiTimeEdit", "ShamsiDateTimeEdit",
-           "format_jdate", "format_time", "parse_jdate", "parse_time"]
+           "format_jdate", "format_time", "parse_jdate", "parse_time",
+           "open_date_dialog"]
 
 # ───────────────────────── ثابت‌ها و ابزارها ─────────────────────────
 
@@ -44,9 +45,57 @@ def _shift_date(d, days):
     g = d.togregorian() + timedelta(days=days)
     return jdatetime.date.fromgregorian(date=g)
 
-def _shift_time(t, minutes):
-    total = (t.hour * 60 + t.minute + minutes) % (24 * 60)
-    return t.replace(hour=total // 60, minute=total % 60)
+# ---------- اندازه‌ها: دو حالت دسکتاپ / موبایل ----------
+
+S_DESKTOP = dict(
+    day_h=36, wd_h=22, fs_day=14, fs_wd=13,
+    icon=40, spin_w=34, spin_h=20,
+    m_w=110, y_w=90, m_expand=None, y_expand=None,      # دسکتاپ: عرض ثابت
+    f_y=60, f_m=52, f_d=52, f_h=48, f_expand=None,
+    fs_field=14, fs_sep=15, gap=4,
+)
+S_MOBILE = dict(
+    day_h=32, wd_h=20, fs_day=12, fs_wd=11,
+    icon=30, spin_w=28, spin_h=18,
+    m_w=None, y_w=None, m_expand=3, y_expand=2,          # موبایل: فلکس ۳ به ۲
+    f_y=None, f_m=None, f_d=None, f_h=None, f_expand=2,  # فیلدهای تاریخ/ساعت هم فلکس
+    fs_field=13, fs_sep=13, gap=3,
+)
+
+def _is_mobile(page) -> bool:
+    """تشخیص موبایل — هم enum جدید (ft.PagePlatform) و هم رشتهٔ قدیمی"""
+    try:
+        p = getattr(page, "platform", "")
+        name = getattr(p, "name", str(p))
+        return str(name).lower() in ("android", "ios")
+    except Exception:
+        return False
+
+def _spin_widget(S, on_up, on_down):
+    """دکمه‌های بالا/پایین مشترک بین DateEdit و TimeEdit"""
+    up = ft.IconButton(ft.Icons.ARROW_DROP_UP, width=S["spin_w"], height=S["spin_h"],
+                       style=ft.ButtonStyle(padding=0),
+                       tooltip="زیاد کردن بخش انتخاب‌شده", on_click=on_up)
+    dn = ft.IconButton(ft.Icons.ARROW_DROP_DOWN, width=S["spin_w"], height=S["spin_h"],
+                       style=ft.ButtonStyle(padding=0),
+                       tooltip="کم کردن بخش انتخاب‌شده", on_click=on_down)
+    return ft.Column([up, dn], spacing=0), up, dn
+
+def _cal_dialog(page, title, content, actions):
+    """AlertDialog با padding فشرده روی موبایل (پیش‌فرض فلت ۴۰px حاشیه می‌گذارد)"""
+    mob = _is_mobile(page)
+    return ft.AlertDialog(
+        modal=True,
+        title=ft.Text(title, size=16 if mob else 18),
+        title_padding=ft.Padding.only(left=16, right=16, top=16 if mob else 24),
+        content=content,
+        content_padding=ft.Padding.all(10 if mob else 24),
+        inset_padding=ft.Padding.symmetric(horizontal=16, vertical=24) if mob
+                      else ft.Padding.symmetric(horizontal=40, vertical=24),
+        actions=actions,
+    )
+
+# ---------- ابزار تاریخ/زمان ----------
 
 def format_jdate(d, fmt="yyyy/MM/dd", persian=True):
     out, i = [], 0
@@ -105,22 +154,38 @@ def show_dialog(page, dlg):
 def close_dialog(page, dlg):
     (page.pop_dialog() if hasattr(page, "pop_dialog") else page.close(dlg))
 
-_CELL_W, _CELL_H = 44, 36
-
-# ───────────────────── ۱) ShamsiCalendar ≈ QCalendarWidget ─────────────────────
+# ───────────────────── ۱) ShamsiCalendar ─────────────────────
 
 class ShamsiCalendar:
+    """تقویم شمسی — سلول‌ها واکنش‌گرا هستند (expand) و همیشه در عرض دیالوگ جا می‌شوند.
+    compact=None → خودکار بر اساس پلتفرم (True/False برای اجبار)"""
+
     def __init__(self, on_change=None, value=None, min_date=None, max_date=None,
-                 first_year=1300, last_year=1500, show_today_button=True):
+                 first_year=1300, last_year=1500, show_today_button=True, compact=None):
         self.on_change = on_change
-        self._page = None
         self._min, self._max = min_date, max_date
         self.first_year, self.last_year = first_year, last_year
         self.show_today_button = show_today_button
+        self.compact = compact
         self.value = _clamp_date(value or jdatetime.date.today(), min_date, max_date)
         self._vy, self._vm = self.value.year, self.value.month
-        self.body = ft.Column(spacing=6, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+        self._page_obj = None
+        self.body = ft.Column(spacing=4, horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
         self._render()
+
+    # — property _page: با ست‌کردن صفحه، اندازه‌ها طبق پلتفرم دوباره اعمال می‌شود —
+    @property
+    def _page(self): return self._page_obj
+
+    @_page.setter
+    def _page(self, p):
+        self._page_obj = p
+        self._render()
+
+    def _S(self):
+        if self.compact is not None:
+            return S_MOBILE if self.compact else S_DESKTOP
+        return S_MOBILE if _is_mobile(self._page_obj) else S_DESKTOP
 
     # — API —
     def selected_date(self): return self.value
@@ -139,20 +204,24 @@ class ShamsiCalendar:
         self._vy, self._vm = self.value.year, self.value.month
         self._page_update()
 
-    def show_today(self):self.set_date(jdatetime.date.today())
-    def next_month(self):self._nav(+1)
-    def previous_month(self):self._nav(-1)
+    def show_today(self): self.set_date(jdatetime.date.today())
+    def next_month(self): self._nav(+1)
+    def previous_month(self): self._nav(-1)
 
     # — داخلی —
     def _page_update(self):
         self._render()
-        if self._page: self._page.update()
+        if self._page_obj: self._page_obj.update()
 
     def _nav(self, delta):
         m, y = self._vm + delta, self._vy
-        if m == 0:   m, y = 12, y - 1
+        if m == 0:    m, y = 12, y - 1
         elif m == 13: m, y = 1, y + 1
         self._vy, self._vm = y, m
+        self._page_update()
+
+    def _view(self, m, y):
+        self._vm, self._vy = m, y
         self._page_update()
 
     def _render(self):
@@ -162,98 +231,136 @@ class ShamsiCalendar:
         self.body.controls = controls
 
     def _header(self):
+        S = self._S()
         y_lo, y_hi = min(self.first_year, self._vy), max(self.last_year, self._vy)
         return ft.Row([
-            ft.IconButton(ft.Icons.CHEVRON_LEFT, tooltip="ماه قبل", on_click=lambda e: self._nav(-1)),
-            ft.Dropdown(
-                width=110, value=str(self._vm),
-                options=[ft.DropdownOption(key=str(m), text=J_MONTHS[m - 1]) for m in range(1, 13)],
-                on_select=lambda e: self._view(int(e.control.value), self._vy)
-                ),
-            ft.Dropdown(
-                width=90, value=str(self._vy),
-                options=[ft.DropdownOption(key=str(y), text=fa(y)) for y in range(y_lo, y_hi + 1)],
-                on_select=lambda e: self._view(self._vm, int(e.control.value))
-                ),
-            ft.IconButton(ft.Icons.CHEVRON_RIGHT, tooltip="ماه بعد", on_click=lambda e: self._nav(+1)),
-        ], vertical_alignment=ft.CrossAxisAlignment.CENTER)
-
-    def _view(self, m, y):
-        self._vm, self._vy = m, y
-        self._page_update()
+            ft.IconButton(ft.Icons.CHEVRON_LEFT, tooltip="ماه قبل",
+                          width=S["icon"], height=S["icon"],
+                          style=ft.ButtonStyle(padding=0),
+                          on_click=lambda e: self._nav(-1)),
+            # expand → عرض ثابت نیست؛ سهمی از فضای موجود می‌گیرد و جمع می‌شود
+            ft.Dropdown(width=S["m_w"], expand=S["m_expand"], value=str(self._vm),
+                        options=[ft.DropdownOption(key=str(m), text=J_MONTHS[m - 1])
+                                 for m in range(1, 13)],
+                        on_select=lambda e: self._view(int(e.control.value), self._vy)),
+            ft.Dropdown(width=S["y_w"], expand=S["y_expand"], value=str(self._vy),
+                        options=[ft.DropdownOption(key=str(y), text=fa(y))
+                                 for y in range(y_lo, y_hi + 1)],
+                        on_select=lambda e: self._view(self._vm, int(e.control.value))),
+            ft.IconButton(ft.Icons.CHEVRON_RIGHT, tooltip="ماه بعد",
+                          width=S["icon"], height=S["icon"],
+                          style=ft.ButtonStyle(padding=0),
+                          on_click=lambda e: self._nav(+1)),
+        ], spacing=S["gap"],
+           alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+           vertical_alignment=ft.CrossAxisAlignment.CENTER)
 
     def _weekdays(self):
+        S = self._S()
         return ft.Row(
-            [ft.Row([ft.Text(w, size=13, weight=ft.FontWeight.BOLD)],
-                    width=_CELL_W, alignment=ft.MainAxisAlignment.CENTER)
+            [ft.Container(ft.Text(w, size=S["fs_wd"], weight=ft.FontWeight.BOLD,
+                                  text_align=ft.TextAlign.CENTER),
+                          expand=True, height=S["wd_h"], alignment=ft.Alignment.CENTER)
              for w in reversed(J_WEEKDAYS_SHORT)],
-            alignment=ft.MainAxisAlignment.CENTER, spacing=2)
+            spacing=2)
 
     def _grid(self):
+        S = self._S()
         offset = jdatetime.date(self._vy, self._vm, 1).weekday()   # شنبه = ۰
-        spacer = lambda: ft.Container(width=_CELL_W, height=_CELL_H)
+        spacer = lambda: ft.Container(expand=True, height=S["day_h"])
         cells = [spacer() for _ in range(offset)]
         cells += [self._day_cell(d) for d in range(1, _days_in_month(self._vy, self._vm) + 1)]
         rows = [cells[i:i + 7] for i in range(0, len(cells), 7)]
         rows[-1] += [spacer() for _ in range(7 - len(rows[-1]))]
-        return ft.Column([ft.Row(r[::-1], alignment=ft.MainAxisAlignment.CENTER, spacing=2)
-                          for r in rows], spacing=2)
+        return ft.Column([ft.Row(r[::-1], spacing=2) for r in rows],
+                         spacing=2, horizontal_alignment=ft.CrossAxisAlignment.STRETCH)
 
     def _day_cell(self, day):
+        S = self._S()
         d = jdatetime.date(self._vy, self._vm, day)
         disabled = (self._min and d < self._min) or (self._max and d > self._max)
-        if d == self.value:
-            st = ft.ButtonStyle(bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE, padding=0)
-        elif d == jdatetime.date.today():
-            st = ft.ButtonStyle(bgcolor=ft.Colors.BLUE_100, color=ft.Colors.BLUE_900, padding=0)
+        selected = (d == self.value)
+        today = (d == jdatetime.date.today())
+        if selected:
+            st = ft.ButtonStyle(bgcolor=ft.Colors.PRIMARY, color=ft.Colors.ON_PRIMARY, padding=0)
+        elif today:
+            st = ft.ButtonStyle(bgcolor=ft.Colors.PRIMARY_CONTAINER,
+                                color=ft.Colors.ON_PRIMARY_CONTAINER, padding=0)
         else:
             st = ft.ButtonStyle(padding=0)
-        return ft.TextButton(fa(day), width=_CELL_W, height=_CELL_H, style=st,
-                             disabled=disabled, on_click=lambda e, dd=day: self.set_date(
-                                 jdatetime.date(self._vy, self._vm, dd)))
+        return ft.TextButton(
+            content=ft.Text(fa(day), size=S["fs_day"],
+                            weight=ft.FontWeight.BOLD if (selected or today) else ft.FontWeight.NORMAL),
+            expand=True, height=S["day_h"], style=st, disabled=disabled,
+            on_click=lambda e, dd=day: self.set_date(jdatetime.date(self._vy, self._vm, dd)))
 
     def _today_row(self):
-        return ft.Row([ft.TextButton("امروز", on_click=lambda e: self.show_today())],
-                      width=7 * _CELL_W + 12, alignment=ft.MainAxisAlignment.END)
+        S = self._S()
+        return ft.Row([ft.TextButton("امروز", height=S["day_h"],
+                                     on_click=lambda e: self.show_today())],
+                      alignment=ft.MainAxisAlignment.END)
 
 
-# ───────────────────── ۲) ShamsiDateEdit ≈ QDateEdit (بخش‌محور) ─────────────────────
+# ───────────────────── ۲) ShamsiDateEdit ─────────────────────
 
 class ShamsiDateEdit:
     def __init__(self, on_change=None, value=None, min_date=None, max_date=None,
-                 first_year=1300, last_year=1500, calendar_popup=True):
+                 first_year=1300, last_year=1500, calendar_popup=True, compact=None):
         self.on_change = on_change
-        self._page = None
         self._min, self._max = min_date, max_date
         self.first_year, self.last_year = first_year, last_year
         self._section = "day"
         self._dlg = None
+        self.compact = compact
+        self._page_obj = None
         self.value = _clamp_date(value or jdatetime.date.today(), min_date, max_date)
 
-        self.f_y = self._make_field("year", 60)
-        self.f_m = self._make_field("month", 52)
-        self.f_d = self._make_field("day", 52)
-        sep = lambda ch: ft.Text(ch, size=15, weight=ft.FontWeight.BOLD)
-        parts = [self.f_y, sep("/"), self.f_m, sep("/"), self.f_d, self._spin()]
-        if calendar_popup:
-            parts.append(ft.IconButton(ft.Icons.CALENDAR_MONTH, tooltip="تقویم", on_click=self.open_popup))
+        self.f_y = self._make_field("year")
+        self.f_m = self._make_field("month")
+        self.f_d = self._make_field("day")
+        self._seps = [ft.Text("/", size=15, weight=ft.FontWeight.BOLD),
+                      ft.Text("/", size=15, weight=ft.FontWeight.BOLD)]
+        self._spin_col, up, dn = _spin_widget(self._S(),
+                                              lambda e: self._step_section(+1),
+                                              lambda e: self._step_section(-1))
+        self._spin_btns = [up, dn]
+        self._cal_btn = ft.IconButton(ft.Icons.CALENDAR_MONTH, tooltip="تقویم",
+                                      width=self._S()["icon"], height=self._S()["icon"],
+                                      style=ft.ButtonStyle(padding=0), on_click=self.open_popup)
+        parts = [self.f_y, self._seps[0], self.f_m, self._seps[1], self.f_d,
+                 self._spin_col, self._cal_btn]
         self.body = ft.Row(parts, spacing=3, vertical_alignment=ft.CrossAxisAlignment.CENTER)
         self._refresh()
+        self._apply_sizes()
 
-    def _make_field(self, sec, w):
-        return ft.TextField(value="", width=w, dense=True, text_align=ft.TextAlign.CENTER,
+    # — property _page: اولین بار که صفحه ست شد، ابعاد موبایل/دسکتاپ اعمال می‌شود —
+    @property
+    def _page(self): return self._page_obj
+
+    @_page.setter
+    def _page(self, p):
+        self._page_obj = p
+        self._apply_sizes()
+
+    def _S(self):
+        if self.compact is not None:
+            return S_MOBILE if self.compact else S_DESKTOP
+        return S_MOBILE if _is_mobile(self._page_obj) else S_DESKTOP
+
+    def _apply_sizes(self):
+        S = self._S()
+        for f, w in ((self.f_y, S["f_y"]), (self.f_m, S["f_m"]), (self.f_d, S["f_d"])):
+            f.width, f.expand, f.text_size = w, S["f_expand"], S["fs_field"]
+        for t in self._seps: t.size = S["fs_sep"]
+        for b in self._spin_btns: b.width, b.height = S["spin_w"], S["spin_h"]
+        self._cal_btn.width, self._cal_btn.height = S["icon"], S["icon"]
+
+    def _make_field(self, sec):
+        return ft.TextField(value="", width=60, dense=True, text_align=ft.TextAlign.CENTER,
                             on_focus=lambda e, s=sec: self._set_section(s),
                             on_blur=self._apply_all, on_submit=self._apply_all)
 
     def _set_section(self, sec): self._section = sec
-
-    def _spin(self):
-        return ft.Column([
-            ft.IconButton(ft.Icons.ARROW_DROP_UP, width=34, height=20, style=ft.ButtonStyle(padding=0),
-                          tooltip="زیاد کردن بخش انتخاب‌شده", on_click=lambda e: self._step_section(+1)),
-            ft.IconButton(ft.Icons.ARROW_DROP_DOWN, width=34, height=20, style=ft.ButtonStyle(padding=0),
-                          tooltip="کم کردن بخش انتخاب‌شده", on_click=lambda e: self._step_section(-1)),
-        ], spacing=0)
 
     def _refresh(self):
         self.f_y.value = fa(self.value.year)
@@ -286,7 +393,7 @@ class ShamsiDateEdit:
         self.set_date(self.value)
 
     def _page_update(self):
-        if self._page: self._page.update()
+        if self._page_obj: self._page_obj.update()
 
     def _step_section(self, delta):
         y, m, d = self.value.year, self.value.month, self.value.day
@@ -304,13 +411,11 @@ class ShamsiDateEdit:
         self.set_date(jdatetime.date(y, m, d))
 
     def open_popup(self, e=None):
-        cal = ShamsiCalendar(
-            on_change=self._picked, value=self.value,
-            min_date=self._min, max_date=self._max
-            )
-        cal._page = self._page
-        self._dlg = ft.AlertDialog(modal=True, title=ft.Text("انتخاب تاریخ"), content=cal.body,
-                                   actions=[ft.TextButton("بستن", on_click=self.close_popup)])
+        cal = ShamsiCalendar(on_change=self._picked, value=self.value,
+                             min_date=self._min, max_date=self._max, compact=self.compact)
+        cal._page = self._page   # رندر با اندازهٔ درست پلتفرم
+        self._dlg = _cal_dialog(self._page, "انتخاب تاریخ", cal.body,
+                                [ft.TextButton("بستن", on_click=self.close_popup)])
         show_dialog(self._page, self._dlg)
 
     def close_popup(self, e=None): close_dialog(self._page, self._dlg)
@@ -319,38 +424,56 @@ class ShamsiDateEdit:
         self.close_popup()
         self.set_date(d)
 
-# ───────────────────── ۳) ShamsiTimeEdit ≈ QTimeEdit (بخش‌محور) ─────────────────────
+
+# ───────────────────── ۳) ShamsiTimeEdit ─────────────────────
 
 class ShamsiTimeEdit:
-    def __init__(self, on_change=None, value=None, minute_step=1):
+    def __init__(self, on_change=None, value=None, minute_step=1, compact=None):
         self.on_change = on_change
-        self._page = None
         self._step_min = minute_step
         self._section = "minute"
+        self.compact = compact
+        self._page_obj = None
         self.value = value or dtime(0, 0)
 
-        self.f_h = self._make_field("hour", 48)
-        self.f_m = self._make_field("minute", 52)
-        parts = [self.f_h, ft.Text(":", size=15, weight=ft.FontWeight.BOLD), self.f_m, self._spin()]
+        self.f_h = self._make_field("hour")
+        self.f_m = self._make_field("minute")
+        self._colon = ft.Text(":", size=15, weight=ft.FontWeight.BOLD)
+        self._spin_col, up, dn = _spin_widget(self._S(),
+                                              lambda e: self._step_section(+1),
+                                              lambda e: self._step_section(-1))
+        self._spin_btns = [up, dn]
+        parts = [self.f_h, self._colon, self.f_m, self._spin_col]
         self.body = ft.Row(parts, spacing=3, vertical_alignment=ft.CrossAxisAlignment.CENTER)
         self._refresh()
+        self._apply_sizes()
 
-    def _make_field(self, sec, w):
-        return ft.TextField(
-            value="", width=w, dense=True, text_align=ft.TextAlign.CENTER,
-            on_focus=lambda e, s=sec: self._set_section(s),
-            on_blur=self._apply_all, on_submit=self._apply_all
-            )
+    @property
+    def _page(self): return self._page_obj
+
+    @_page.setter
+    def _page(self, p):
+        self._page_obj = p
+        self._apply_sizes()
+
+    def _S(self):
+        if self.compact is not None:
+            return S_MOBILE if self.compact else S_DESKTOP
+        return S_MOBILE if _is_mobile(self._page_obj) else S_DESKTOP
+
+    def _apply_sizes(self):
+        S = self._S()
+        for f, w in ((self.f_h, S["f_h"]), (self.f_m, S["f_m"])):
+            f.width, f.expand, f.text_size = w, S["f_expand"], S["fs_field"]
+        self._colon.size = S["fs_sep"]
+        for b in self._spin_btns: b.width, b.height = S["spin_w"], S["spin_h"]
+
+    def _make_field(self, sec):
+        return ft.TextField(value="", width=48, dense=True, text_align=ft.TextAlign.CENTER,
+                            on_focus=lambda e, s=sec: self._set_section(s),
+                            on_blur=self._apply_all, on_submit=self._apply_all)
 
     def _set_section(self, sec): self._section = sec
-
-    def _spin(self):
-        return ft.Column([
-            ft.IconButton(ft.Icons.ARROW_DROP_UP, width=34, height=20, style=ft.ButtonStyle(padding=0),
-                          tooltip="زیاد کردن بخش انتخاب‌شده", on_click=lambda e: self._step_section(+1)),
-            ft.IconButton(ft.Icons.ARROW_DROP_DOWN, width=34, height=20, style=ft.ButtonStyle(padding=0),
-                          tooltip="کم کردن بخش انتخاب‌شده", on_click=lambda e: self._step_section(-1)),
-        ], spacing=0)
 
     def _refresh(self):
         self.f_h.value = fa(self.value.hour)
@@ -374,7 +497,7 @@ class ShamsiTimeEdit:
         if changed and self.on_change: self.on_change(self.value)
 
     def _page_update(self):
-        if self._page: self._page.update()
+        if self._page_obj: self._page_obj.update()
 
     def _step_section(self, delta):
         h, mi = self.value.hour, self.value.minute
@@ -384,11 +507,13 @@ class ShamsiTimeEdit:
             mi = (mi + delta * self._step_min) % 60
         self.set_time(dtime(h, mi))
 
-# ───────────────────── ۴) ShamsiDateTimeEdit ≈ QDateTimeEdit ─────────────────────
+
+# ───────────────────── ۴) ShamsiDateTimeEdit ─────────────────────
 
 class ShamsiDateTimeEdit:
     def __init__(self, on_change=None, value=None, min_datetime=None, max_datetime=None,
-                 calendar_popup=True, minute_step=1, first_year=1300, last_year=1500):
+                 calendar_popup=True, minute_step=1, first_year=1300, last_year=1500,
+                 compact=None):
         self.on_change = on_change
         self._min = _as_datetime(min_datetime)
         self._max = _as_datetime(max_datetime)
@@ -397,17 +522,15 @@ class ShamsiDateTimeEdit:
         max_d = jdatetime.date(self._max.year, self._max.month, self._max.day) if self._max else None
         self._de = ShamsiDateEdit(
             on_change=self._sub_changed, value=jdatetime.date(v.year, v.month, v.day),
-            min_date=min_d, max_date=max_d,
-            first_year=first_year, last_year=last_year,
-            calendar_popup=calendar_popup
-            )
+            min_date=min_d, max_date=max_d, first_year=first_year, last_year=last_year,
+            calendar_popup=calendar_popup, compact=compact)
         self._te = ShamsiTimeEdit(
             on_change=self._sub_changed, value=dtime(v.hour, v.minute),
-            minute_step=minute_step
-            )
+            minute_step=minute_step, compact=compact)
         self.value = v
-        self.body = ft.Row([self._de.body, self._te.body], spacing=10,
-                           vertical_alignment=ft.CrossAxisAlignment.CENTER)
+        # wrap=True → روی صفحهٔ باریک موبایل، تاریخ و ساعت خودکار زیر هم می‌افتند
+        self.body = ft.Row([self._de.body, self._te.body], spacing=8, run_spacing=6,
+                           wrap=True, vertical_alignment=ft.CrossAxisAlignment.CENTER)
 
     def _sub_changed(self, _=None):
         d, t = self._de.date(), self._te.time()
@@ -439,21 +562,17 @@ class ShamsiDateTimeEdit:
 
 
 def open_date_dialog(page, value=None, on_selected=None,
-                     min_date=None, max_date=None, title="انتخاب تاریخ"):
+                     min_date=None, max_date=None, title="انتخاب تاریخ", compact=None):
     """دیالوگ انتخاب تاریخ شمسی — روز انتخاب‌شده (jdatetime.date) به on_selected می‌رسد."""
-    cal = ShamsiCalendar(value=value, min_date=min_date, max_date=max_date)
+    cal = ShamsiCalendar(value=value, min_date=min_date, max_date=max_date, compact=compact)
     cal._page = page
 
     def day_picked(d):
-        page.pop_dialog()
+        close_dialog(page, None)
         if on_selected:
             on_selected(d)
 
     cal.on_change = day_picked
-    dlg = ft.AlertDialog(
-        modal=True,
-        title=ft.Text(title),
-        content=cal.body,
-        actions=[ft.TextButton("بستن", on_click=lambda e: page.pop_dialog())],
-    )
+    dlg = _cal_dialog(page, title, cal.body,
+                      [ft.TextButton("بستن", on_click=lambda e: close_dialog(page, None))])
     show_dialog(page, dlg)
