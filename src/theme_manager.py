@@ -1,10 +1,19 @@
-import os        # _register_picked_image
-import json      # _load_img_palette
-import shutil    # کپی فایل
-import colorsys  # extract_palette
+"""مدیریت ظاهر برنامه: تم روشن/تاریک، فونت، قالب رنگی و پس‌زمینه (رنگ/تصویر).
+
+ذخیره‌سازی فایل‌ها طبق راهنمای رسمی فلت با متغیرهای محیطی
+FLET_APP_STORAGE_DATA / FLET_APP_STORAGE_CACHE / FLET_APP_STORAGE_TEMP
+انجام می‌شود (نه با expanduser("~") و نه با صفات page — که روی اندروید
+منجر به PermissionError می‌شد).
+"""
+
+import os
+import json
+import shutil
+import colorsys
+import tempfile
 
 import flet as ft
-from PIL import Image   # extract_palette
+from PIL import Image
 
 
 # ---------- گزینه‌های ظاهری ----------
@@ -27,6 +36,7 @@ BACKGROUNDS = [
     {"key": "sky",     "title": "آبی ملایم", "light": "#EDF3FA", "dark": "#131A22"},
     {"key": "image",   "title": "تصویر",     "light": None,      "dark": None, "is_image": True},
 ]
+
 
 # ---------- ابزار ترکیب رنگ ----------
 def _mix(c1: str, c2: str, t: float) -> str:
@@ -82,7 +92,7 @@ COLOR_SCHEMES = [
     {"key": "indigo", "title": "نیلی",      "base": "INDIGO", "swatch": "#3949AB"},
     {"key": "purple", "title": "بنفش",      "base": "PURPLE", "swatch": "#8E24AA"},
     {"key": "orange", "title": "نارنجی",    "base": "ORANGE", "swatch": "#FB8C00"},
-    {"key": "custom", "title": "از تصویر", "base": None, "swatch": "#607D8B"},
+    {"key": "custom", "title": "از تصویر",  "base": None,     "swatch": "#607D8B"},
 ]
 
 
@@ -244,7 +254,7 @@ class ThemeMixin:
         # طیف شیدی: استاندارد یا استخراج‌شده از تصویر
         if scheme["base"]:
             shades = HUE_SHADES[scheme["base"]]
-        else:                                   # گزینهٔ «از تصویر»
+        else:
             shades = shades_from(self._load_img_palette()[0])
 
         cs_light = self._build_color_scheme(shades, False, bg["light"])
@@ -253,8 +263,6 @@ class ThemeMixin:
         page.theme = ft.Theme(font_family=family, color_scheme=cs_light)
         page.dark_theme = ft.Theme(font_family=family, color_scheme=cs_dark)
 
-        # رنگ زیرین صفحه — در حالت تصویر، از تیره‌ترین رنگ پالت
-        # (برای لبه‌ها/لحظهٔ بارگزاری تصویر)
         img_path = (self.db.get_setting("bg_image", "") or "") if bg_key == "image" else ""
         if img_path and os.path.exists(img_path):
             page.bgcolor = _mix(min(self._load_img_palette(), key=_lum), "#000000", 0.2)
@@ -269,7 +277,12 @@ class ThemeMixin:
 
     def bg_image(self):
         """ft.DecorationImage | None — توسط router روی کانتینر ریشهٔ هر view
-        به‌صورت image=self.bg_image() استفاده می‌شود."""
+        به‌صورت image=self.bg_image() استفاده می‌شود.
+
+        فایل همیشه داخل sandbox خود اپ ذخیره می‌شود
+        (FLET_APP_STORAGE_DATA)؛ بنابراین Flutter روی اندروید هم
+        بدون مشکل می‌تواند آن را بخواند.
+        """
         if self.db.get_setting("background", "default") == "image":
             p = self.db.get_setting("bg_image", "") or ""
             if p and os.path.exists(p):
@@ -288,8 +301,21 @@ class ThemeMixin:
         )
 
     def clear_background_image(self, e=None):
+        """حذف تصویر پس‌زمینه و بازگشت به پس‌زمینهٔ پیش‌فرض"""
+        # پاک‌کردن فایل‌های ذخیره‌شده (به‌ازای هر پسوند ممکن)
+        dst_dir = os.path.join(self._bg_storage_dir(), "backgrounds")
+        if os.path.isdir(dst_dir):
+            for f in os.listdir(dst_dir):
+                if f.startswith("bg."):
+                    try:
+                        os.remove(os.path.join(dst_dir, f))
+                    except OSError:
+                        pass
+
         self.db.set_setting("bg_image", "")
+        self.db.set_setting("img_palette", "[]")
         self.db.set_setting("background", "default")
+
         self.apply_appearance()
         cb = getattr(self, "_on_bg_changed", None)
         if cb:
@@ -303,7 +329,7 @@ class ThemeMixin:
     def setup_bg_picker(self):
         if getattr(self, "_bg_picker", None) is not None:
             return
-        self._bg_picker = ft.FilePicker()            # سرویس — نه ویژوال
+        self._bg_picker = ft.FilePicker()
         if hasattr(self.page, "services"):
             self.page.services.append(self._bg_picker)
         # ⚠️ هرگز page.overlay.append نکنید → باکس قرمز
@@ -314,14 +340,49 @@ class ThemeMixin:
             files = await self._bg_picker.pick_files(
                 dialog_title="انتخاب تصویر پس‌زمینه",
                 allow_multiple=False,
-                file_type=ft.FilePickerFileType.CUSTOM,   # بدون این، فیلتر اثر ندارد
-                allowed_extensions=["png", "jpg", "jpeg", "webp", "bmp"],
+                # روی اندروید انتخاب‌گر تصویر سیستم (گالری) باز می‌شود؛
+                # مطمئن‌تر و با UX بهتر از CUSTOM + allowed_extensions
+                file_type=ft.FilePickerFileType.IMAGE,
             )
         except Exception as ex:
             self.snack(f"خطا در باز کردن دیالوگ: {ex}")
             return
         if files:
+            # ⚠️ فایل پیک‌شده در location موقتی است و ممکن است با پایان
+            # session پاک شود → بلافاصله کپی می‌کنیم (توصیهٔ مستندات فلت)
             self._register_picked_image(files[0].path)
+
+    # ------------------------------------------------------------------
+    # محل ذخیره‌سازی فایل‌ها — طبق راهنمای رسمی فلت
+    # ------------------------------------------------------------------
+
+    def _bg_storage_dir(self) -> str:
+        """مسیر مطلق و دائمی برای نگهداری تصاویر پس‌زمینه.
+
+        فلت در همهٔ پلتفرم‌ها این متغیرهای محیطی را ست می‌کند:
+          FLET_APP_STORAGE_DATA  → دادهٔ دائمی؛ OS هرگز پاکش نمی‌کند،
+                                   با آپدیت اپ حفظ می‌شود، و همچنین
+                                   working directory برنامه است.
+          FLET_APP_STORAGE_CACHE → کشِ قابل بازیابی؛ OS ممکن است پاکش کند.
+          FLET_APP_STORAGE_TEMP  → موقت؛ ممکن است بین دو اجرا حذف شود.
+
+        برای تصویری که کاربر انتخاب کرده و باید بماند، DATA درست‌ترین
+        انتخاب است. (expanduser("~") روی اندروید HOME=/data می‌دهد
+        که نوشتنی نیست و باعث PermissionError می‌شد.)
+        """
+        data = os.getenv("FLET_APP_STORAGE_DATA")
+        if data and os.path.isdir(data):
+            return data
+
+        # fallback — فقط وقتی خارج از runtime فلت اجرا شود (تست/ابزار)
+        for cand in (
+            os.getenv("FLET_APP_STORAGE_CACHE"),
+            os.getenv("TMPDIR"),
+            tempfile.gettempdir(),
+        ):
+            if cand and os.path.isdir(cand):
+                return cand
+        return os.getcwd()
 
     def _load_img_palette(self) -> list:
         try:
@@ -331,22 +392,26 @@ class ThemeMixin:
             pal = []
         return pal or ["#607D8B"]
 
-    def _bg_storage_dir(self) -> str:
-        """مسیر مطلق و دائمی برای نگهداری تصاویر پس‌زمینه"""
-        for attr in ("user_data_path", "app_storage_path", "cache_path"):
-            p = getattr(self.page, attr, None)
-            if p:
-                return p
-        # فلت مسیر نداد → محل استاندارد دادهٔ کاربر
-        return os.path.join(os.path.expanduser("~"), ".local", "share", "chelleyar")
-
     def _register_picked_image(self, src_path: str):
         """کپی به محل دائمی + استخراج پالت + اعمال"""
-        ext = os.path.splitext(src_path)[1].lower() or ".png"
-        dst_dir = os.path.join(self._bg_storage_dir(), "backgrounds")
-        os.makedirs(dst_dir, exist_ok=True)
-        dst = os.path.join(dst_dir, f"bg{ext}")
-        shutil.copy(src_path, dst)
+        try:
+            dst_dir = os.path.join(self._bg_storage_dir(), "backgrounds")
+            os.makedirs(dst_dir, exist_ok=True)
+
+            ext = os.path.splitext(src_path)[1].lower() or ".png"
+            dst = os.path.join(dst_dir, f"bg{ext}")
+            shutil.copy(src_path, dst)
+
+            # فایل باقی‌مانده از انتخاب قبلی با پسوند دیگر را پاک کن
+            for f in os.listdir(dst_dir):
+                if f.startswith("bg.") and f != os.path.basename(dst):
+                    try:
+                        os.remove(os.path.join(dst_dir, f))
+                    except OSError:
+                        pass
+        except Exception as ex:
+            self.snack(f"ذخیرهٔ تصویر ممکن نشد: {ex}")
+            return
 
         self.db.set_setting("bg_image", dst)
         self.db.set_setting("img_palette", json.dumps([h for _, h in extract_palette(dst)]))
