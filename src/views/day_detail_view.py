@@ -209,7 +209,7 @@ def _editable_view(app, c, day, log, day_header) -> ft.Control:
         max_lines=5,
         value=log.get("morning_note", ""),
         hint_text="قبل از شروع روز چه قصدی دارید؟",
-        border_radius=12,
+        border=ft.OutlineInputBorder(border_radius=12),
         filled=True,
         text_size=13,
         expand=True,
@@ -249,7 +249,7 @@ def _editable_view(app, c, day, log, day_header) -> ft.Control:
         max_lines=5,
         value=log.get("evening_note", ""),
         hint_text="امروز چطور گذشت؟",
-        border_radius=12,
+        border=ft.OutlineInputBorder(border_radius=12),
         filled=True,
         text_size=13,
         expand=True,
@@ -293,7 +293,7 @@ def _editable_view(app, c, day, log, day_header) -> ft.Control:
     level_dd = ft.Dropdown(
         label="سطح وظیفه امروز",
         value=current_id,
-        border_radius=12,
+        border=ft.OutlineInputBorder(border_radius=12),
         filled=True,
         expand=True,
         options=[
@@ -767,7 +767,7 @@ def _show_reassign_dialog(app, c, day, log):
 
     dd = ft.Dropdown(
         label="این روز با کدام سطح ثبت شده بود؟",
-        border_radius=12,
+        border=ft.OutlineInputBorder(border_radius=12),
         filled=True,
         options=[
             ft.DropdownOption(
