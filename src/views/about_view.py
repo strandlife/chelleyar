@@ -1,6 +1,7 @@
 import flet as ft
 
 from theme import gradient_header, elevated_card
+import urllib.parse
 
 
 # ---------- اطلاعات طراح را اینجا پر کنید ----------
@@ -91,7 +92,7 @@ def build_about_view(app) -> ft.Control:
 def _build_profile_card(d: dict) -> ft.Container:
     avatar = ft.Container(
         content=ft.Container(
-            content=ft.Icon(ft.Icons.PERSON, size=48,
+            content=ft.Image(src='pic1.png',
                             color=ft.Colors.WHITE),
             width=96, height=96,
             bgcolor=ft.Colors.with_opacity(0.2, ft.Colors.WHITE),
@@ -325,6 +326,7 @@ def _support_button(icon, title: str, subtitle: str,
         ink=True,
         on_click=on_click,
         animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT),
+        col={ft.ResponsiveRowBreakpoint.MD: 3},
     )
 
 # ==================================================================
@@ -335,18 +337,43 @@ def _build_support_card(app, d: dict) -> ft.Container:
     page = app.page
 
     # ---------- دکمه ۱: درخواست ویژگی ----------
-    def open_feature_request(e):
+    def open_feature_by_email_request(e):
+        """باز کردن برنامه ایمیل برای ارسال درخواست قابلیت"""
+        email = d.get("email", "chellehyar@chmail.ir")
+        subject = "درخواست قابلیت جدید (Feature Request)"
+        body = "سلام،\n\nقابلیت پیشنهادی من:\n\n- "
+
+        url = (
+            f"mailto:{email}"
+            f"?subject={urllib.parse.quote(subject)}"
+            f"&body={urllib.parse.quote(body)}"
+        )
+        _launch_url(app, url)
+
+
+    def open_feature_by_github_request(e):
+        """باز کردن صفحه Issues مخزن در گیت‌هاب"""
         _launch_url(app, d["issues_url"])
 
-    feature_btn = _support_button(
+    feature_by_email_btn = _support_button(
         icon=ft.Icons.LIGHTBULB_OUTLINE,
-        title="درخواست ویژگی",
-        subtitle="ایده یا پیشنهاد خود را ثبت کنید",
+        title="درخواست ویژگی با رایانامه",
+        subtitle="chellehyar@chmail.ir",
         colors=["#1976D2", "#42A5F5"],
         shadow_color="#1976D2",
-        on_click=open_feature_request,
+        on_click=open_feature_by_email_request,
         badge=None,
     )
+
+    feature_by_github_btn = _support_button(
+            icon=ft.Icons.LIGHTBULB_OUTLINE,
+            title=" درخواست ویژگی با گیتهاب",
+            subtitle="https://github.com/strandlife/chelleyar/issues",
+            colors=["#1976D2", "#42A5F5"],
+            shadow_color="#1976D2",
+            on_click=open_feature_by_github_request,
+            badge=None,
+        )
 
     # ---------- دکمه ۲: حمایت + درخواست ویژگی ----------
     def open_combo(e):
@@ -377,11 +404,14 @@ def _build_support_card(app, d: dict) -> ft.Container:
     )
 
     # ---------- چیدمان دکمه‌ها ----------
-    buttons = ft.ResponsiveRow([
-        ft.Column([feature_btn], col={"xs": 12, "md": 4}),
-        ft.Column([combo_btn], col={"xs": 12, "md": 4}),
-        ft.Column([donate_btn], col={"xs": 12, "md": 4}),
-    ], spacing=10, run_spacing=10)
+    buttons = ft.ResponsiveRow(
+        controls=[
+            feature_by_email_btn,
+            feature_by_github_btn,
+            combo_btn,
+            donate_btn]
+    , spacing=10,
+    run_spacing={ft.ResponsiveRowBreakpoint.XS: 10},)
 
     return elevated_card(
         ft.Column([
