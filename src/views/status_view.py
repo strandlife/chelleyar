@@ -234,19 +234,34 @@ def _make_day_cell(app, c, i, day_date, desktop=False, locked=False) -> ft.Conta
         border = None
 
     # ---------- محتوای سلول ----------
-    cell_children = [
-        ft.Text(to_persian_digits(str(i)), size=13, weight=ft.FontWeight.BOLD, color=fg),
-        ft.Text(day_date, size=10),
-    ]
-
-    if result == "success":
-        cell_children.append(ft.Icon(ft.Icons.CHECK, size=10, color=fg))
-    elif result == "failure":
-        cell_children.append(ft.Icon(ft.Icons.CLOSE, size=10, color=fg))
-    elif locked:
-        cell_children.append(ft.Icon(ft.Icons.LOCK, size=10, color=fg))
+    if _is_desktop(app):
+        cell_children = [
+        ft.Text(to_persian_digits(str(i)), size=15, weight=ft.FontWeight.BOLD, color=fg, expand=1),
+        ft.Text(day_date, size=15),
+        ]
+        if result == "success":
+            cell_children.append(ft.Icon(ft.Icons.CHECK, size=15, color=fg,expand=1))
+        elif result == "failure":
+            cell_children.append(ft.Icon(ft.Icons.CLOSE, size=15, color=fg,expand=1))
+        elif locked:
+            cell_children.append(ft.Icon(ft.Icons.LOCK, size=15, color=fg,expand=1))
+        else:
+            cell_children.append(ft.Container(height=10))
     else:
-        cell_children.append(ft.Container(height=10))
+        cell_children = [
+        ft.Text(to_persian_digits(str(i)), size=13, weight=ft.FontWeight.BOLD, color=fg, expand=2),
+        ft.Text(day_date, size=10),
+        ]
+        if result == "success":
+            cell_children.append(ft.Icon(ft.Icons.CHECK, size=10, color=fg))
+        elif result == "failure":
+            cell_children.append(ft.Icon(ft.Icons.CLOSE, size=10, color=fg))
+        elif locked:
+            cell_children.append(ft.Icon(ft.Icons.LOCK, size=10, color=fg))
+        else:
+            cell_children.append(ft.Container(height=10))
+
+    
 
     def on_click(e):
         if not is_clickable:
@@ -254,13 +269,25 @@ def _make_day_cell(app, c, i, day_date, desktop=False, locked=False) -> ft.Conta
         app.selected_day = i
         app.navigate("/day")
 
-    return ft.Container(
-        content=ft.Column(
+    if _is_desktop(app):
+        content_bts = ft.Row(
+            cell_children,
+            spacing=1,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            margin=10,
+            expand=True,
+        )
+    else:
+        content_bts = ft.Column(
             cell_children,
             spacing=0,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             alignment=ft.MainAxisAlignment.CENTER,
-        ),
+        )
+
+
+    return ft.Container(
+        content=content_bts,
         height=52 if desktop else 48,
         bgcolor=bg,
         border=border,
