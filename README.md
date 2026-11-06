@@ -1,71 +1,79 @@
-# Chelleyar app
+# Chelleyar
 
-## Run the app
 
-### uv
-این برنامه برای مدیریت یکی از رسوم انسان ساز اسلام طراحی شده. یعنی چله گرفتن.
-چهل روز خود را مدیریت می کنیم تا بتوانیم یک گناه مشخص را ترک کنیم و رد عصبی آن را در مغز خود تغییر دهیم
+## **چله یار**
 
-Run as a desktop app:
+برنامه ای برای مدیریت چله های تغییر عادت
+**توضیح بیشتر:**
+شما ۴۰ روز رفتار خود را پایش خواهید کرد مغز شما بپذیرد که رفتار مورد نظر برای شما دیگر ضروری نیست و رد های عصبی آن را از مغز شما حذف کند. یا برعکس آن. می توانید بر انجام دادن یک رفتار در این چهل روز نظارت کنید و به مغز خود نشان دهید این عمل برای شما حیاتی هست. در نتیجه مغز شما برای آن کار جدید رد های عضبی جدید در مغز خواهد ساخت.
 
-```bash
-uv run flet run
-```
+**ویژگی ها:**
+ساخت چله برای تغییر عادت
+اختصاص نام نمایشی برای چله جهت مخفی ماندن موضوع چله
+قفل کردن یک چله
+ساخت سطوح وظیفه ای با امتیاز بندی و رنگ بندی متفاوت برای چله
+نمایش وضعیت یک چله
+امکان ارسال یک چله برای دیگران
+امکان دریافت چله از دیگران
+درج یادداشت صبحگاهی و پایانی در هنگام شب برای یک چله
+نمایش آمار یک چله
+استفاده از تقویم فارسی
+پشتیبان گیری از چله ها
+راهنمای علمی برنامه
+انتخاب تصویر پس زمینه
+انتخاب قلم برای محیط برنامه
+نمایش تاریخجه یک دوره
+تم تاریک و روشن
 
-Run as a web app:
+### محیط برنامه
+![enter image description here](/src/assets/wall/1.png)
 
-```bash
-uv run flet run --web
-```
+### پیش نیاز ها:
 
-For more details on running the app, refer to the [Getting Started Guide](https://flet.dev/docs/).
+    flet>=1.0.3, flet-charts, persiantools, cryptography, pillow, jdatetime, tinydb>=4.9.0,
 
-## Build the app
+### اجرای کد ها در لینوکس
 
-### Android
+ابتدا وارد پوشه برنامه شده و یک ترمینال باز کنید و سپس دستور زیر را اجرا کنید
 
-```bash
-flet build apk -v
-```
+    pip3 install flet
+اجرای برنامه:
 
-For more details on building and signing `.apk` or `.aab`, refer to the [Android Packaging Guide](https://flet.dev/docs/publish/android/).
+    flet run
 
-### iOS
+### اجرا روی آندروید
+فایل های apk آماده نصب و به کاربستن هستند.
 
-```bash
-flet build ipa -v
-```
+### ساخت فایل IOS
+برای ساخت فایل سکوی آی او اس می توانید دستور زیر را اجرا کنید
 
-For more details on building and signing `.ipa`, refer to the [iOS Packaging Guide](https://flet.dev/docs/publish/ios/).
+    flet build ipa
 
-### macOS
+### اجرا روی ویندوز
+روی ویندوز آزمایش نشده. اما احتمال ۹۰ درصد مشکلی نخواهد داشت
 
-```bash
-flet build macos -v
-```
+## مجوز
 
-For more details on building macOS package, refer to the [macOS Packaging Guide](https://flet.dev/docs/publish/macos/).
+این نرم‌افزار تحت مجوز GNU عمومی همگانی نسخهٔ ۳ یا نسخه‌های بعدی
+(GPL-3.0-or-later) منتشر می‌شود.
 
-### Linux
+حق تکثیر © ۲۰۲۵ [نام شما یا سازمان]
 
-```bash
-flet build linux -v
-```
+این یک نرم‌افزار آزاد است و با هدف باقی‌ماندن آزاد برای همیشه منتشر
+شده است: هر کسی می‌تواند آن را برای هر منظوری استفاده کند، کد منبع
+را مطالعه و تغییر دهد، و کپی‌ها را — از جمله به‌صورت رایگان — بازتوزیع
+کند، به شرط آنکه نسخه‌های ویرایش‌شده نیز تحت همین مجوز و همراه کد
+منبع کامل منتشر شوند.
 
-For more details on building Linux package, refer to the [Linux Packaging Guide](https://flet.dev/docs/publish/linux/).
+هیچ‌کس نمی‌تواند این نرم‌افزار را به نرم‌افزار خصوصی تبدیل کند یا
+دسترسی آزاد دیگران به کد را محدود سازد.
 
-### Windows
+این برنامه بدون هیچ گارانتی‌ای ارائه می‌شود. متن کامل شرایط در
+فایل LICENSE و در آدرس زیر موجود است:
+https://www.gnu.org/licenses/gpl-3.0.txt
 
-```bash
-flet build windows -v
-```
 
-For more details on building Windows package, refer to the [Windows Packaging Guide](https://flet.dev/docs/publish/windows/).
 
-### Web
 
-```bash
-flet build web -v
-```
 
-For more details on building Web app, refer to the [Web Packaging Guide](https://flet.dev/docs/publish/web/).
+
